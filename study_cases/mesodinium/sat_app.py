@@ -29,7 +29,7 @@ opj = os.path.join
 idir = '/DATA/projet/gernez/mesodinium'
 datadir = opj(idir, 'data')
 figdir = opj(idir, 'fig')
-satfiles = glob.glob(opj(datadir, 'satellite/*GRS.txt'))
+satfiles = glob.glob(opj(datadir, 'satellite/S2*.txt'))
 
 # ------------------------------
 #   set iop parameters
@@ -38,7 +38,7 @@ satfiles = glob.glob(opj(datadir, 'satellite/*GRS.txt'))
 # load iop_star values
 iops = pd.read_csv(opj(datadir, 'Art1_Fig4_IOPs_Mrubrum.txt'), sep=' ', index_col=0)
 # add wavelengths to cover full range up to 1000nm
-additional_wl = np.arange(iops.index.values[-1] + 1, 1001, 1)
+additional_wl = np.arange(iops.index.values[-1] + 1, 1101, 1)
 iops = iops.append(pd.DataFrame([iops.iloc[-1]] * len(additional_wl), index=additional_wl))
 iops.index.name = 'wl'
 water = RTp.water()
@@ -67,15 +67,17 @@ sm.set_array([])
 # load and loop on satellite
 # pixel values
 # ------------------------------
-
+wl_min=0
+wl_max=800
 for satfile in satfiles:
 
     satdata = pd.read_csv(satfile, skiprows=6, sep='\t')
     wl = pd.read_csv(satfile, skiprows=5, nrows=1, index_col=0, header=None, sep='\t')
-    wl = wl[(wl > 0) & (wl < 1000)]
+    wl = wl[(wl > 0) & (wl < 1100)]
     wl = wl.dropna(axis=1)
 
     wl_sat = np.unique(wl)
+    idx_wl = (wl_sat > wl_min) & (wl_sat < wl_max)
     sza = satdata.SZA.mean()
 
 
@@ -88,12 +90,19 @@ for satfile in satfiles:
     for name in var_names:
         satres.loc[:, name] = 0
 
-    Rrs = satdata.filter(regex='Rrs_B[0-9]')
-    # remove SWIR bands
-    Rrs = Rrs.drop(['Rrs_B11', 'Rrs_B12'], axis=1)
-    # for tests remove other bands
-    Rrs = Rrs.drop(['Rrs_B1','Rrs_B8', 'Rrs_B8A'], axis=1)
-    wl_ = wl_sat[[range(1,7)]]
+    if 'S3' in satfile:
+        Rrs = satdata.filter(regex='reflectance')
+        wl_ = wl_sat[idx_wl]
+        Rrs = Rrs.iloc[:,idx_wl]
+
+    else:
+        Rrs = satdata.filter(regex='Rrs_B[0-9]')
+        # remove SWIR bands
+        Rrs = Rrs.drop(['Rrs_B11', 'Rrs_B12'], axis=1)
+        # for tests remove other bands
+        Rrs = Rrs.drop(['Rrs_B1','Rrs_B8', 'Rrs_B8A'], axis=1)
+        wl_ = wl_sat[[range(1,7)]]
+
     a_star_sat = set_wl(a_star, wl_)
     bb_star_sat = set_wl(bb_star, wl_)
     solver = Rrs_inversion(wl_, a_star_sat, bb_star_sat, sza)
@@ -104,8 +113,8 @@ for satfile in satfiles:
 
     # transform to 0- (subsurface) rrs
     rrs = water.Rrs2rrs(Rrs)
-    #res = rrs.apply(solver.call_solver, axis=1)
-    res = rrs.parallel_apply(solver.call_solver, axis=1)
+    res = rrs.apply(solver.call_solver, axis=1)
+    #res = rrs.parallel_apply(solver.call_solver, axis=1)
     # res = solver.multiprocess(rrs)
 
     # -----------------

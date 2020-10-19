@@ -26,11 +26,11 @@ model = models[2]
 project = 'nosea'
 idir = os.path.join('/DATA/projet/VRTC/lut/', project)
 odir = os.path.join('/DATA/projet/VRTC/fig/', project)
-idir = '/home/harmel/VRTC/lut/nosea/'
+#idir = '/home/harmel/VRTC/lut/nosea/'
 
 aot_list = ('0.01', '0.1', '0.2', '0.5', '1.0')
 aot_num = [float(x) for x in aot_list]
-wl_num = [0.400, 0.443, 0.490, 0.560, 0.665, 0.705, 0.740, 0.783, 0.865, 1.610, 2.190, 2.4]
+wl_num = [0.350,0.400, 0.443, 0.490, 0.560, 0.665, 0.705, 0.740, 0.783, 0.865, 1.610, 2.190, 2.4]
 wl_list = ["{:0.3f}".format(x) for x in wl_num]
 
 directions = ['down', 'up']

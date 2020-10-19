@@ -8,7 +8,7 @@ import xarray as xr
 # set plotting styles
 import cmocean as cm
 import matplotlib.pyplot as plt
-
+plt.ioff()
 plt.rcParams.update({'font.size': 16})
 
 # TODO check sunglint component from OSOAA check OSOAA_SOS_CORE_harmel.F line 2181 or 3982
@@ -28,7 +28,7 @@ files = sorted(glob.glob(os.path.join(idir, pattern)))
 
 aot_list = ('0.01', '0.1', '0.2', '0.5', '1.0')
 aot_num = [ float(x) for x in aot_list ]
-wl_num=[0.400, 0.443, 0.490, 0.560, 0.665, 0.705, 0.740, 0.783, 0.865, 1.610, 2.190]
+wl_num=[0.350, 0.400, 0.443, 0.490, 0.560, 0.665, 0.705, 0.740, 0.783, 0.865, 1.610, 2.190]
 wl_list = [ "{:0.3f}".format(x) for x in wl_num ]
 
 
@@ -164,7 +164,7 @@ iaot=1
 szaidx=3
 fig, axs = plt.subplots(1,4, figsize=(20, 8), subplot_kw=dict(projection='polar'))
 vmax=0.06
-for i, iwl in enumerate((0,2,3,7)):
+for i, iwl in enumerate((0,2,4,9)):
     rho = rho_mat[0,0][iaot,iwl, szaidx, vza < vzamax, ...].T
     cmap = cm.tools.crop_by_percent(cm.cm.balance, 20, which='both', N=None)
 

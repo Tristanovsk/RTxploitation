@@ -58,7 +58,7 @@ wl_S3= np.array([ 400.  ,  412.5 ,  442.5 ,  490.  ,  510.  ,  560.  ,  620.  ,
         665.  ,  673.75,  681.25,  708.75,  753.75,  778.75,  865.  ,
         885.  , 1020.  ])
 wl_width = []
-wl_sat =wl_S2
+wl_sat =wl_S3
 wl = iops.index.values
 
 water = RTp.water()
@@ -83,7 +83,7 @@ a_star_sat = set_wl(a_star, wl_sat)
 bb_star_sat = set_wl(bb_star, wl_sat)
 
 # load satellite pixel results
-satfiles = glob.glob(opj(datadir, 'satellite/S2*GRSres.csv'))
+satfiles = glob.glob(opj(datadir, 'satellite/S3*res.csv'))
 for satfile in satfiles:
     title = '_'.join(satfile.split(r'_')[-3:]).replace('.csv', '')
 
@@ -95,10 +95,13 @@ for satfile in satfiles:
     solver_hyp = Rrs_inversion(wl, a_star, bb_star,sza)
 
     fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(21, 21))  # ncols=3, figsize=(30, 12))
-    for irow, chl in  enumerate(([0,20],[20,80],[80,1000])):
+    for irow, chl in  enumerate(([0,10],[10,80],[80,1000])):
+        norm = mpl.colors.Normalize(vmin=chl[0], vmax=min(200,chl[1]))
+        sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
+        sm.set_array([])
         df_ = df[(df.chl>=chl[0])&(df.chl<chl[1])]
-        #Rrs_sat = df_.filter(regex='reflectance')
-        Rrs_sat = df_.filter(regex='Rrs_B[0-9]').astype('float')
+        Rrs_sat = df_.filter(regex='reflectance')
+        #Rrs_sat = df_.filter(regex='Rrs_B[0-9]').astype('float')
 
         # remove SWIR bands:
         Rrs_ = Rrs_sat.iloc[:,:-2].values
@@ -107,10 +110,10 @@ for satfile in satfiles:
         #lc = uplot.multiline(wl_, Rrs_, x[:,0], ax=axs[irow,1], cmap='Spectral', lw=2,alpha=0.5)
         xy_max = Rrs_.max() * 1.2 #(max(max(Rrs_sat), max(Rrs_est)) * 1.2)
         for idx, sat in df_.iterrows():
-            #Rrs_sat = df_.filter(regex='reflectance').astype('float')
-            Rrs_sat = sat.filter(regex='Rrs_B[0-9]').astype('float')
+            Rrs_sat = sat.filter(regex='reflectance').astype('float')
+            #Rrs_sat = sat.filter(regex='Rrs_B[0-9]').astype('float')
             # remove SWIR bands:
-            Rrs_sat = Rrs_sat.iloc[:-2]
+           # Rrs_sat = Rrs_sat.iloc[:-2]
             x = sat.iloc[-5:]
 
             axs[irow,0].plot(wl_sat, Rrs_sat, color=cmap(norm(x[0])), label='Measured', lw=2.5, alpha=0.75)
@@ -124,11 +127,11 @@ for satfile in satfiles:
         axs[irow,0].set_ylabel(r'$Rrs\ (sr^{-1})$')
         axs[irow,0].set_xlabel(r'Wavelength (nm)')
         axs[irow,0].set_title(str(chl[0])+r'$ \leq chl <$'+str(chl[1])+', Satellite')
-        axs[irow,0].set_xlim(420, 880)
+        axs[irow,0].set_xlim(390, 1020)
         axs[irow,1].set_ylabel(r'$Rrs\ (sr^{-1})$')
         axs[irow,1].set_xlabel(r'Wavelength (nm)')
         axs[irow,1].set_title(r'Reconstructed')
-        axs[irow,1].set_xlim(420, 880)
+        axs[irow,1].set_xlim(390, 1020)
         axs[irow,2].set_ylabel(r'$Rrs_{modeled}$')
         axs[irow,2].set_xlabel(r'$Rrs_{satellite}$')
         axs[irow,2].set_title(r'Comparison')

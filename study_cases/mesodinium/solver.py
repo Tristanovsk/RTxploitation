@@ -128,7 +128,7 @@ class Rrs_inversion:
         out1 = min1.least_squares(max_nfev=30, xtol=1e-7, ftol=1e-4)
         out1.params.pretty_print()
 
-        print(lm.fit_report(out1))
+        #print(lm.fit_report(out1))
         return out1
 
     def multiprocess(self, df):

@@ -25,14 +25,15 @@ def walktree(top):
             yield children
 
 
-idir = '/home/harmel/VRTC/lut/bagré'
-idir = '/home/harmel/VRTC/lut/nosea'
+idir = '/home/harmel/VRTC/lut/sediment_density'
+# idir = '/home/harmel/VRTC/lut/nosea'
 
 odir = '/DATA/projet/VRTC/fig/nosea'
+odir = '/DATA/projet/VRTC/fig/bagré'
 pattern = 'osoaa_nosea_aot0.1_aero_rg0.80_sig0.60_nr1.51_ni-0.02_ws2_wl*_pressure1015.2.nc'
-pattern = 'osoaa_nosea_aot0.01_aero_rg0.10_sig0.46_nr1.51_ni-0.0200_ws2_wl*_pressure1015.2.nc'
+pattern = 'osoaa_tot_aot0.1_aero_rg0.10_sig0.46_nr1.45_ni-0.0010_ws2_chl3.00_sed200.00_*_wl0.865.nc'
 
-# odir = '/DATA/projet/VRTC/fig/bagré'
+
 # pattern='osoaa_tot_aot0.1_aero_rg0.80_sig0.60_nr1.45_ni-0.0010_ws2_chl3.00_sed*_sedjs*_sednr1.17_sedni-0.0010_wl1.610.nc'
 
 files = sorted(glob.glob(os.path.join(idir, pattern)))
