@@ -22,27 +22,47 @@ from RTxploitation import utils as u
 from RTxploitation import parameterization as RTp
 import RTxploitation.auxdata as ad
 import study_cases.mesodinium.plot_utils as uplot
-from study_cases.mesodinium.solver import Rrs_inversion
+from study_cases.mesodinium.solver_v2 import Rrs_inversion
+import study_cases.mesodinium as meso
 
 plot = False
 
 opj = os.path.join
+root = os.path.abspath(os.path.dirname(meso.__file__))
+dataroot = opj(root, 'data')
+
+
 idir = '/DATA/projet/gernez/mesodinium'
-datadir = opj(idir, 'data')
 figdir = opj(idir, 'fig')
+dirdata = opj(idir,'data')
+
+sensor='s2'
+
+if sensor =='s2':
+    satfiles = glob.glob(opj(dirdata, 'satellite/S2*res_v2*.csv'))
+    sat_props=('s2a',list(range(9)))
+    wl_max=900
+else:
+    satfiles = glob.glob(opj(dirdata, 'satellite/S3*res_v2*.csv'))
+    sat_props=('s3a',list([0,1,2,3,4,5,6,7,8,9,10,11,15,16,17,20])) #list([0,1,2,3,4,5,6,7,8,9,10,11,14]))
+    wl_max=1020
 
 # load iop_star values
-iops = pd.read_csv(opj(datadir, 'Art1_Fig4_IOPs_Mrubrum.txt'), sep=' ', index_col=0)
+iops = pd.read_csv(opj(dataroot, 'gernez_IOPs_Mrubrum.txt'), sep=' ', index_col=0)
 # add wavelengths to cover full range up to 1000nm
-additional_wl = np.arange(iops.index.values[-1] + 1, 1001, 1)
+additional_wl = np.arange(iops.index.values[-1] + 1, 1101, 1)
 iops = iops.append(pd.DataFrame([iops.iloc[-1]] * len(additional_wl), index=additional_wl))
 iops.index.name = 'wl'
 
-# add coef for pure water
-iops['aw'], iops['bbw'] = ad.iopw().get_iopw(iops.index)
+iops.bbp_star = 4e-4
+
+a_star, bb_star = iops.aphy_star.to_xarray(), iops.bbp_star.to_xarray()
+sza=30
+
+solver = Rrs_inversion(a_star, bb_star, sza, sat=sat_props[0], band_idx=sat_props[1])
 
 # load satellite pixel values
-satfiles = glob.glob(opj(datadir, 'satellite/*GRS.txt'))
+
 cmap = plt.cm.get_cmap("Spectral").reversed()
 
 decimal = 3
@@ -52,83 +72,80 @@ norm = mpl.colors.Normalize(vmin=cmin, vmax=cmax)
 sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
 sm.set_array([])
 
-wl_S2 = np.array([442.7316, 492.441, 559.8538, 664.6208, 704.1223, 740.4838,
-                   782.751, 832.77, 864.7027])
-wl_S3= np.array([ 400.  ,  412.5 ,  442.5 ,  490.  ,  510.  ,  560.  ,  620.  ,
-        665.  ,  673.75,  681.25,  708.75,  753.75,  778.75,  865.  ,
-        885.  , 1020.  ])
 wl_width = []
-wl_sat =wl_S2
+wl_sat = solver.wl
 wl = iops.index.values
 
 water = RTp.water()
-iops.bbp_star = 8e-4
+#iops.bbp_star = 8e-4
 
 # -----------------
-# inversion algo
+# plotting results
 # -----------------
-coef = 1
-chl = 50
 
-a_star, bb_star = iops.aphy_star, iops.bbp_star
-
-
-# convert into satellite bands
-def set_wl(df, wl):
-    return df.to_xarray().interp(wl=wl).to_pandas()
-
-
-var_names = ['chl', 'a_bg_ref', 'bb_bg_ref', 'S_bg', 'eta_bg']
-a_star_sat = set_wl(a_star, wl_sat)
-bb_star_sat = set_wl(bb_star, wl_sat)
-
-# load satellite pixel results
-satfiles = glob.glob(opj(datadir, 'satellite/S2*GRSres.csv'))
 for satfile in satfiles:
-    title = '_'.join(satfile.split(r'_')[-3:]).replace('.csv', '')
+    title = '_'.join(satfile.split(r'_')[-6:]).replace('.csv', '')
+    title = os.path.basename(satfile).replace('.csv', '')
 
     print(title)
     df = pd.read_csv(satfile)
     sza = df.SZA.mean()
 
-    solver = Rrs_inversion(wl_sat, a_star_sat, bb_star_sat,sza)
-    solver_hyp = Rrs_inversion(wl, a_star, bb_star,sza)
+    solver = Rrs_inversion(a_star, bb_star,sza,sat=sat_props[0], band_idx=sat_props[1] )
+    solver_hyp = Rrs_inversion( a_star, bb_star,sza,wl_=wl)
 
     fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(21, 21))  # ncols=3, figsize=(30, 12))
-    for irow, chl in  enumerate(([0,20],[20,80],[80,1000])):
+    for irow, chl in  enumerate(([0,20],[20,40],[40,1000])):
+        print(irow)
+        norm = mpl.colors.Normalize(vmin=chl[0], vmax=min(100,chl[1]))
+        sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
+        sm.set_array([])
+
         df_ = df[(df.chl>=chl[0])&(df.chl<chl[1])]
-        #Rrs_sat = df_.filter(regex='reflectance')
-        Rrs_sat = df_.filter(regex='Rrs_B[0-9]').astype('float')
+
+        if sensor == 's2':
+            Rrs_sat = df_.filter(regex='Rrs_B[0-9]').astype('float')
+        else:
+            Rrs_sat = df_.filter(regex='reflectance').astype('float')/np.pi
 
         # remove SWIR bands:
         Rrs_ = Rrs_sat.iloc[:,:-2].values
         wl_ = [wl_sat] * Rrs_.shape[0]
-        x = df_.iloc[:,-5:].values
-        #lc = uplot.multiline(wl_, Rrs_, x[:,0], ax=axs[irow,1], cmap='Spectral', lw=2,alpha=0.5)
         xy_max = Rrs_.max() * 1.2 #(max(max(Rrs_sat), max(Rrs_est)) * 1.2)
+
         for idx, sat in df_.iterrows():
             #Rrs_sat = df_.filter(regex='reflectance').astype('float')
-            Rrs_sat = sat.filter(regex='Rrs_B[0-9]').astype('float')
-            # remove SWIR bands:
-            Rrs_sat = Rrs_sat.iloc[:-2]
+            if sensor == 's2':
+                Rrs_sat = sat.filter(regex='Rrs_B[0-9]').astype('float')
+                # get appropriate bands:
+                Rrs_sat = Rrs_sat[sat_props[1]]
+            else:
+                Rrs_sat = sat.filter(regex='reflectance').astype('float')/np.pi
+
+
             x = sat.iloc[-5:]
 
+            # satellite data
             axs[irow,0].plot(wl_sat, Rrs_sat, color=cmap(norm(x[0])), label='Measured', lw=2.5, alpha=0.75)
-            # axs[0].plot(wl_sat, Rrs_est, '--',color=cmap(norm(x[0])), label='Estimation', lw=2.5, alpha=0.75)
-            Rrs_est = solver_hyp.forward_model(x)
-            # axs[1].plot(wl_sat, Rrs_sat, color=cmap(x[0]), label='Measured', lw=2.5, alpha=0.75)
+
+            # hyperspectral simulations
+            Rrs_est = solver_hyp.forward_model(x,level='above')
             axs[irow,1].plot(wl, Rrs_est, '--', color=cmap(norm(x[0])), label='Estimation', lw=2.5, alpha=0.75)
-            Rrs_est = solver.forward_model(x)
+
+            # comparison simu/data
+            Rrs_est = solver.forward_model(x,level='above')
             compar =axs[irow,2].scatter(Rrs_sat, Rrs_est, c=wl_sat,cmap='Spectral_r', alpha=0.6)
 
         axs[irow,0].set_ylabel(r'$Rrs\ (sr^{-1})$')
         axs[irow,0].set_xlabel(r'Wavelength (nm)')
         axs[irow,0].set_title(str(chl[0])+r'$ \leq chl <$'+str(chl[1])+', Satellite')
-        axs[irow,0].set_xlim(420, 880)
+        axs[irow,0].set_xlim(400, wl_max)
+        axs[irow,0].set_ylim(-2e-3,xy_max)
         axs[irow,1].set_ylabel(r'$Rrs\ (sr^{-1})$')
         axs[irow,1].set_xlabel(r'Wavelength (nm)')
         axs[irow,1].set_title(r'Reconstructed')
-        axs[irow,1].set_xlim(420, 880)
+        axs[irow,1].set_xlim(400, wl_max)
+        axs[irow,1].set_ylim(-2e-3,xy_max)
         axs[irow,2].set_ylabel(r'$Rrs_{modeled}$')
         axs[irow,2].set_xlabel(r'$Rrs_{satellite}$')
         axs[irow,2].set_title(r'Comparison')
@@ -148,7 +165,7 @@ for satfile in satfiles:
     plt.suptitle(title)
     plt.tight_layout(rect=[0.05, 0.05, 0.95, 0.86])
     fig.subplots_adjust(left=0.1, right=0.9, hspace=.5, wspace=0.45)
-    fig.savefig(os.path.join(figdir, 'Rrs_retieval_compar_' + title + '.png'),dpi=200)
+    fig.savefig(os.path.join(figdir, 'Rrs_retieval_compar_' + title + '_v2.png'),dpi=200)
     plt.close()
     data = df.iloc[:, -5:]
     data.hist()

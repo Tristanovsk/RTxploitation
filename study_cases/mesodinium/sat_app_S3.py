@@ -80,15 +80,12 @@ var_names = ['chl', 'a_bg_ref', 'bb_bg_ref', 'S_bg', 'eta_bg']
 # ------------------------------
 satfile = os.path.abspath('/home/harmel/satellite/s2/gernez/S3/' +
                           'subset_0_of_S3A_OL_2_WFR____20170413T105447_20170413T105647_20171108T040153_0119_016_265______MR1_R_NT_002.nc')
-
 img = xr.open_dataset(satfile)
 sza = img.SZA.data.mean()
 keys = np.array(list(img.keys()))
 cube = img.get(keys[sat_props[1]])
 wls = []
-varnames = []
 for varname, da in cube.data_vars.items():
-    varnames.append(varname)
     wl = da.attrs['radiation_wavelength']
     print(wl)
     wls.append(wl)

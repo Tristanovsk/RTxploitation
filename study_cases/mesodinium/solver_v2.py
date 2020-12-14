@@ -15,7 +15,7 @@ water = RTp.water()
 
 
 class Rrs_inversion:
-    def __init__(self, a_star: xr.DataArray, bb_star: xr.DataArray, sza, sat='s2a',band_idx=None, wl_=None):
+    def __init__(self, a_star: xr.DataArray, bb_star: xr.DataArray, sza, sat='s2a', band_idx=None, wl_=None):
         '''
         Set parameter values for satellite bands characteristics (band spectral responses)
         :param sat: satellite sensor ID
@@ -31,7 +31,7 @@ class Rrs_inversion:
             self.aw, self.bbw = ad.iopw().get_iopw(wl_)
         else:
             # proceed to band spectral response convolution
-            rsrs = spectral(sat,band_idx)
+            rsrs = spectral(sat, band_idx)
             wl_ = np.arange(350, 2700, 1)
 
             self.wl = rsrs.convolution(wl_, wl_)
@@ -40,6 +40,8 @@ class Rrs_inversion:
             aw, bbw = ad.iopw().get_iopw(wl_)
             self.aw, self.bbw = rsrs.convolution(wl_, aw), rsrs.convolution(wl_, bbw)
 
+        # measurements uncertainty for each band (strictly positive)
+        self.sig_meas = [1] * len(self.wl)
 
         # parameters for the Gordon88 model
         self.g0 = 0.089
@@ -98,25 +100,18 @@ class Rrs_inversion:
         :return: vector of the objective function values for each wl
         '''
 
-        chl, a_bg_ref, bb_bg_ref, S_bg, eta_bg = np.array(list(x.valuesdict().values()))
-        # print(chl, a_bg_ref, bb_bg_ref, S_bg, eta_bg)
-        a_bg = self.abg(a_bg_ref, S_bg)
-        bb_bg = self.bbbg(bb_bg_ref, eta_bg)
-        rrs_fluo = water.Rrs2rrs(water.fluo_gower2004(chl, self.wl, Ed_ref=self.Ed_ref))
+        pars = np.array(list(x.valuesdict().values()))
 
-        deltas = self.g0sq + 4 * self.g1 * (rrs - rrs_fluo)
+        rrs_simu = self.forward_model(pars)
 
-        u = (-self.g0 + np.sqrt(deltas)) / (2 * self.g1)
+        func = (rrs - rrs_simu)  / self.sig_meas
 
-        func = chl + (self.bbw + bb_bg - u * (self.aw + a_bg + self.bbw + bb_bg)) \
-               / (bb_star - u * (a_star + bb_star))
-        # print(np.sum(func**2))
         # TODO add constraints
         constraint = []
 
         return np.append(func, constraint)
 
-    def forward_model(self, pars):
+    def forward_model(self, pars, level='below'):
         chl, a_bg_ref, bb_bg_ref, S_bg, eta_bg = pars
 
         # print(chl, a_bg_ref, bb_bg_ref, S_bg, eta_bg)
@@ -127,24 +122,27 @@ class Rrs_inversion:
         bb = self.bbw + self.bb_star * chl + bb_bg
         a = self.aw + self.a_star * chl + a_bg
 
-        Rrs_fluo = water.Rrs2rrs(water.fluo_gower2004(chl, self.wl, Ed_ref=self.Ed_ref))
-        Rrs = water.gordon88(a, bb)
+        rrs_fluo = water.Rrs2rrs(water.fluo_gower2004(chl, self.wl, Ed_ref=self.Ed_ref))
+        rrs = water.gordon88(a, bb)
+        rrs_tot = rrs + rrs_fluo
+        if level == "below":
+            return rrs_tot
+        else:
+            return water.rrs2Rrs(rrs_tot)
 
-        return Rrs + Rrs_fluo
-
-    def call_solver(self, rrs,numpy=True):
+    def call_solver(self, rrs, numpy=True, xinit=[0.5,0.1,0.1,0.015,0.5]):
         if not numpy:
             rrs = rrs.values
         pars = lm.Parameters()
-        pars.add('chl', value=0.5, min=0.03, max=600)
-        pars.add('a_bg_ref', value=0.1, min=0, max=20)
-        pars.add('bb_bg_ref', value=0.001, min=0, max=10)
-        pars.add('S_bg', value=0.015, min=0.005, max=0.035)
-        pars.add('eta_bg', value=0.5, min=0.2, max=1.2)
+        pars.add('chl', value=xinit[0], min=0.03, max=600)
+        pars.add('a_bg_ref', value=xinit[1], min=0, max=60)
+        pars.add('bb_bg_ref', value=xinit[2], min=0, max=60)
+        pars.add('S_bg', value=xinit[3], min=0.005, max=0.035)
+        pars.add('eta_bg', value=xinit[4], min=0.2, max=1.2)
 
         min1 = lm.Minimizer(self.objfunc, pars, fcn_args=(rrs, self.a_star, self.bb_star))
 
-        out1 = min1.least_squares(max_nfev=30, xtol=1e-7, ftol=1e-4)
+        out1 = min1.least_squares()#max_nfev=50, xtol=1e-7, ftol=1e-7)
         out1.params.pretty_print()
 
         # print(lm.fit_report(out1))

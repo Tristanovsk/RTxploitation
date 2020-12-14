@@ -6,7 +6,7 @@ setup(
     name=__package__,
     version=__version__,
     packages=find_packages(exclude=['build']),
-    package_data={'':['*.so','*h','*angles*']},
+    package_data={'':['*.so','*h','*angles*','*.txt','*.csv']},
     #     # If any package contains *.txt files, include them:
     #     '': ['*.txt'],
     #     'lut': ['data/lut/*.nc'],

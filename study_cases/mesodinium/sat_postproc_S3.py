@@ -83,7 +83,7 @@ a_star_sat = set_wl(a_star, wl_sat)
 bb_star_sat = set_wl(bb_star, wl_sat)
 
 # load satellite pixel results
-satfiles = glob.glob(opj(datadir, 'satellite/S3*res.csv'))
+satfiles = glob.glob(opj(datadir, 'satellite/S3*res_v2*.csv'))
 for satfile in satfiles:
     title = '_'.join(satfile.split(r'_')[-3:]).replace('.csv', '')
 
