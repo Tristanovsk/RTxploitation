@@ -4,9 +4,9 @@ import numpy as np
 import netCDF4 as nc
 import xarray as xr
 import pandas as pd
-from pandarallel import pandarallel
+
 import lmfit as lm
-pandarallel.initialize(nb_workers=10)
+
 
 # ----------------------------
 # set plotting styles
@@ -81,7 +81,7 @@ var_names = ['chl', 'a_bg_ref', 'bb_bg_ref', 'S_bg', 'eta_bg']
 xinit=[0.1,2,2,0.015,0.5]
 for id, df_ in Rrss.groupby(level=[0,1]):
     print(id)
-    df_ = df_[(df_.wl>400) & (df_.wl< 900)]
+    df_ = df_[(df_.wl>450) & (df_.wl< 900)]
     Rrs = df_['0.5'].values
     wl = df_.wl
 

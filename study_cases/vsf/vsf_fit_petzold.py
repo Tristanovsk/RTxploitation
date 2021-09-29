@@ -176,7 +176,7 @@ for icol, model in enumerate(models):
         min1, func = model(theta, vsf)
         out1 = min1.least_squares()  # max_nfev=30, xtol=1e-7, ftol=1e-4)
 
-        res_ = pd.DataFrame(data={'sample': [label], 'name': [label], 'wavelength': [550]})
+        res_ = pd.DataFrame(data={'sample': [label], 'name': [label], 'wavelength': [514]})
         res_['cost'] = out1.residual.__abs__().mean()
         for c in ('redchi', 'bic', 'aic'):
             res_[c] = out1.__getattribute__(c)
@@ -335,7 +335,11 @@ for i, (label, group) in enumerate(df.iteritems()):
 
         norm = (np.trapz(func(theta_[1:], *x) * np.sin(np.radians(theta_[1:])), np.radians(theta_[1:])) * np.pi * 2)
         bp_tilde = np.trapz(func(back_ang, *x) * np.sin(np.radians(back_ang)), np.radians(back_ang)) * np.pi * 2 / norm
+        asym = np.trapz(func(theta_[1:], *x) * np.sin(np.radians(theta_[1:]) * np.cos(np.radians(theta_[1:]))),
+                               np.radians(theta_[1:])) * np.pi * 2
         axlin.text(0.95, 0.75, '$\~b_b=${:6.4f}'.format(bp_tilde), size=20,
+                   transform=axlin.transAxes, ha="right", va="top", )
+        axlin.text(0.95, 0.65, r'$<cos \theta > =${:6.3f}'.format(asym), size=20,
                    transform=axlin.transAxes, ha="right", va="top", )
         ax.xaxis.set_major_locator(mpl.ticker.LogLocator(base=10.0, numticks=4))
         ax.yaxis.set_major_locator(mpl.ticker.LogLocator(base=10.0, numticks=10))

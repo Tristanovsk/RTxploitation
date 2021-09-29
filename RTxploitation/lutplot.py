@@ -29,6 +29,23 @@ class plot():
         return
 
     def add_polplot(self, ax, r, theta, values, title="", scale=True, nlayers=25, cmap=cm.cm.delta, minmax=None, colfmt='%0.1e', pad=0.1, fraction=0.034,**kwargs):
+        '''
+        Plot polar diagram of raster expressed in radius and azimuth
+        :param ax:
+        :param r: radius (can be VZA or SZA angles)
+        :param theta: azimuth
+        :param values: raster to plot
+        :param title:
+        :param scale: if True plot colorbar
+        :param nlayers:
+        :param cmap:
+        :param minmax:
+        :param colfmt:
+        :param pad:
+        :param fraction:
+        :param kwargs:
+        :return:
+        '''
 
         self.label_polplot(ax)
         ax.set_title(title, fontdict=self.font, pad=30)

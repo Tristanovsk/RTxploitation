@@ -8,37 +8,47 @@ from scipy.interpolate import interp1d
 import os
 import numpy as np
 
-root = os.path.dirname(os.path.abspath(__file__))
+opj = os.path.join
 
-M2015_file = os.path.join(root, '../../data/rhoTable_Mobley2015.csv')
-M1999_file = os.path.join(root, '../../data/rhoTable_Mobley1999.csv')
-rhosoaa_fine_file = os.path.join(root, '../../data/surface_reflectance_factor_rho_fine_aerosol_rg0.06_sig0.46.csv')
-rhosoaa_coarse_file = os.path.join(root, '../../data/surface_reflectance_factor_rho_coarse_aerosol_rg0.60_sig0.60.csv')
-iopw_file =  os.path.join(root, '../../data/water_coef.txt')
-F0_file =  os.path.join(root, '../../data/Thuillier_2003_0.3nm.dat')
+root = os.path.dirname(os.path.abspath(__file__))
+subdir = '../../data'
+M2015_file = opj(root, subdir, 'rhoTable_Mobley2015.csv')
+M1999_file = opj(root, subdir, 'rhoTable_Mobley1999.csv')
+rhosoaa_fine_file = opj(root, subdir, 'surface_reflectance_factor_rho_fine_aerosol_rg0.06_sig0.46.csv')
+rhosoaa_coarse_file = opj(root, subdir, 'surface_reflectance_factor_rho_coarse_aerosol_rg0.60_sig0.60.csv')
+F0_file = opj(root, subdir, 'Thuillier_2003_0.3nm.dat')
+water_scat_file = opj(root, subdir, 'water_coef.txt')
+water_abs_file = opj(root, subdir,'purewater_abs_coefficients_v3.dat')
 
 
 class iopw:
-    def __init__(self, iopw_file=iopw_file):
-        self.iopw_file = iopw_file
+    def __init__(self):
+        self.water_abs_file = water_abs_file
+        self.water_scat_file = water_scat_file
         self.load_iopw()
 
     def load_iopw(self, ):
-        self.iop_w = pd.read_csv(self.iopw_file, skiprows=30, sep=' ', header=None, names=('wl', 'a', 'bb'))
+        self.iop_w = pd.read_csv(self.water_scat_file, skiprows=30, sep=' ', header=None,
+                                 names=('wl', 'a', 'b')).set_index('wl').to_xarray()
+        self.water_data = pd.read_csv(self.water_abs_file, skiprows=4, sep='\t').set_index('wl').to_xarray()
 
-    def get_iopw(self, wl, mute=False):
+    def get_iopw(self, wl, Twater=20,mute=False):
         '''
         interpolate and return absorption and back-scattering coefficients (m-1)
         for pure water
         :param wl: wavelength in nm, scalar or np.array
+        :param Twater: water temperature in deg C
         :param mute: if true values are not returned (only saved in object)
         :return:
         '''
+        Twater_ref=20
         self.wl = wl
-        self.aw = interp1d(self.iop_w.wl, self.iop_w.a, fill_value='extrapolate')(wl)
-        self.bbw = interp1d(self.iop_w.wl, self.iop_w.bb / 2., fill_value='extrapolate')(wl)
+        a_coef_T = self.water_data.a_coef + (Twater - Twater_ref)*self.water_data.PsiT
+        self.aw = a_coef_T.interp(wl=wl)
+        self.bbw = self.iop_w.b.interp(wl=wl,kwargs={"fill_value": 'extrapolate'})/ 2.
         if not mute:
             return self.aw, self.bbw
+
 
 class irradiance:
     def __init__(self, F0_file=F0_file):

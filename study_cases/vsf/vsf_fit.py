@@ -5,22 +5,26 @@ import numpy as np
 import pandas as pd
 import glob
 
-
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 color_cycle = ['dimgrey', 'firebrick', 'darkorange', 'olivedrab',
                'dodgerblue', 'magenta']
 plt.ioff()
 plt.rcParams.update({'font.family': 'Times New Roman',
                      'font.size': 16, 'axes.labelsize': 20,
-                     'mathtext.default': 'regular',
-                     'mathtext.fontset':'custom',
-                     'xtick.minor.visible': True,
-                     'xtick.major.size': 5,
-                     'ytick.minor.visible': True,
-                     'ytick.major.size': 5,
+                     #'mathtext.default': 'regular',
+                     #'mathtext.fontset': 'custom',
+                     # 'xtick.minor.visible': True,
+                     # 'xtick.major.size': 5,
+                     # 'ytick.minor.visible': True,
+                     # 'ytick.major.size': 5,
                      'axes.prop_cycle': plt.cycler('color', color_cycle)})
+rc = {"font.family" : "serif",
+      "mathtext.fontset" : "stix"}
+plt.rcParams.update(rc)
+plt.rcParams["font.serif"] = ["Times New Roman"] + plt.rcParams["font.serif"]
 
 import lmfit as lm
 
@@ -29,15 +33,15 @@ import study_cases.vsf as vsf
 
 m = vsf.phase_function_models.models()
 
-dir = opj(rtx.__path__[0], '..', 'study_cases', 'vsf', )
+dir = opj('/DATA/git/vrtc/RTxploitation/', 'study_cases', 'vsf', )
 dirdata = opj(dir, 'data')
 
-trunc=False
+trunc = False
 if trunc:
-    dirfig = opj(dir, 'fig','truncated')
+    dirfig = opj(dir, 'fig', 'truncated')
     angular_range = [3, 150]
 else:
-    dirfig = opj(dir, 'fig')
+    dirfig = opj(dir, 'fig', 'test')
     angular_range = [3, 173]
 
 files = glob.glob(opj(dirdata, 'normalized_vsf*txt'))
@@ -155,21 +159,50 @@ def TTFF_fit(theta, vsf):
     return lm.Minimizer(objfunc, pars, fcn_args=(theta, vsf)), model
 
 
+def FFRM_fit(theta, vsf):
+    model = m.P_FFRM
+
+    def objfunc(x, theta, vsf):
+        '''
+        Objective function to be minimized
+        :param x: vector of unknowns
+        :param theta: scattering angle
+        :param vsf: phase function
+        '''
+        gamma, n1, m1, g2, alpha2 = np.array(list(x.valuesdict().values()))
+        simu = model(theta, gamma, n1, m1, g2, alpha2)
+        return np.log(vsf) - np.log(simu)
+
+    pars = lm.Parameters()
+    pars.add('gamma', value=0.7, min=0, max=1)
+    pars.add('n1', value=1.05, min=-1, max=1.35)
+    pars.add('m1', value=4., min=3.5, max=5)
+    pars.add('g2', value=-0.9, min=-.928, max=-0.05)
+    pars.add('alpha2', value=0.5, min=0, max=2.5)
+
+    return lm.Minimizer(objfunc, pars, fcn_args=(theta, vsf)), model
+
+
 # -------------------
 # fitting section
 # -------------------
-models = (FF_fit, RM_fit, TTFF_fit, TTRM_fit)
+models = (FF_fit, RM_fit, FFRM_fit, TTRM_fit)
 samples = ['Arizona', 'Chlorella', 'Cylindrotheca', 'Dunaliella', 'Karenia', 'Skeletonema']
-names = ['Arizona dust', 'C. autotrophica', 'C. closterium', 'D. salina', 'K. mikimotoi', 'S. cf. costatum']
+names = ['Arizona dust', r'$\it{C. autotrophica}$', r'$\it{C. closterium}$', r'$\it{D. salina}$',
+         r'$\it{K. mikimotoi}$', r'$\it{S. cf. costatum}$']
 file_pattern = '/home/harmel/Dropbox/work/git/vrtc/RTxploitation/RTxploitation/../study_cases/vsf/data/normalized_vsf_lov_experiment2015_xxx.txt'
-
-
 
 theta_ = np.linspace(0, 180, 100000)
 back_ang = theta_[theta_ > 90]
 
 
 def L_RM(g, alpha):
+    '''
+    Compute asymmetry parameter from RM parametrization
+    :param g:
+    :param alpha:
+    :return:
+    '''
     gp = (1 + g) ** (2 * alpha)
     gm = (1 - g) ** (2 * alpha)
     return (gp + gm) / (gp - gm)
@@ -214,7 +247,7 @@ for icol, model in enumerate(models):
             res_['asymmetry_factor'] = cos_ave
             if model_ == 'TTRM_fit':
                 x = out1.x
-#                cov = out1.covar[:3, :3]
+                #                cov = out1.covar[:3, :3]
                 L1 = L_RM(x[1], x[3])
                 mu_1 = (2 * x[1] * x[3] * L1 - (1 + x[1] ** 2)) / (2 * x[1] * (x[3] - 1))
                 L2 = L_RM(x[2], x[4])
@@ -222,7 +255,7 @@ for icol, model in enumerate(models):
                 mu_ = x[0] * mu_1 + (1 - x[0]) * mu_2
                 print('rseult: ', x[0], mu_1, mu_2, mu_)
                 J = np.array([x[1] - x[2], x[0], 1 - x[0]])
-#                np.matmul(J, np.matmul(cov, J.T))
+            #                np.matmul(J, np.matmul(cov, J.T))
 
             res.append(res_)
     res = pd.concat(res)
@@ -258,16 +291,16 @@ for param in ('redchi',):  # 'bic','aic','bb_ratio','asymmetry_factor'):
     axs[-2].set_xlabel('Wavelength (nm)')
 
     fig.legend(loc='upper center', bbox_to_anchor=(0.535, .115),
-              fancybox=True, shadow=True, ncol=3, handletextpad=0.5, fontsize=20)
-    #fig.tight_layout()
+               fancybox=True, shadow=True, ncol=3, handletextpad=0.5, fontsize=20)
+    # fig.tight_layout()
     plt.savefig(opj(dirfig, param + '_fitting_performances.png'), dpi=300)
-#\mathit
+# \mathit
 
 
-fig, axs = plt.subplots(4, 2, figsize=(10, 12),sharex=True)
+fig, axs = plt.subplots(4, 2, figsize=(10, 12), sharex=True)
 
 axs = axs.ravel()
-labels=['$\gamma$','$g_1$','$g_2$',r'$\alpha _1$',r'$\alpha_2$','$\~b_b$',r'$<cos\theta >$']
+labels = ['$\gamma$', '$g_1$', '$g_2$', r'$\alpha _1$', r'$\alpha_2$', '$\~b_b$', r'$<cos\theta >$']
 for i, param in enumerate(['gamma', 'g1', 'g2', 'alpha1', 'alpha2', 'bb_ratio', 'asymmetry_factor']):
     ax = axs[i]
     ax.set_ylabel(labels[i])
@@ -282,19 +315,19 @@ axs[-1].set_visible(False)
 
 axs[-2].set_xlabel('Wavelength (nm)')
 axs[-3].set_xlabel('Wavelength (nm)')
-axs[-3].tick_params(axis='x',labelbottom='on')
+axs[-3].tick_params(axis='x', labelbottom='on')
 
 fig.legend(loc='lower left', bbox_to_anchor=(0.57, 0.04),
            fancybox=True, shadow=True, ncol=1, handletextpad=0.5, fontsize=17)
 plt.tight_layout()
-fig.subplots_adjust(hspace=0.065)#, wspace=0.065)
+fig.subplots_adjust(hspace=0.065)  # , wspace=0.065)
 plt.savefig(opj(dirfig, 'TTRM_fitting_parameters.png'), dpi=300)
 
 plt.legend()
 plt.show()
 
 color = ['black', 'blue', 'green', 'red']
-models = (FF_fit, TTFF_fit, RM_fit, TTRM_fit)
+models = (FF_fit, FFRM_fit, RM_fit, TTRM_fit)
 for file in files:
     df = pd.read_csv(file, skiprows=8, sep='\t', index_col=0, skipinitialspace=True, na_values='inf')
     basename = os.path.basename(file).replace('.txt', '')
@@ -327,16 +360,15 @@ for file in files:
 # fig all
 
 
-models = (FF_fit, RM_fit, TTFF_fit, TTRM_fit)
+models = (FF_fit, RM_fit, FFRM_fit, TTRM_fit)
 samples = ['Arizona', 'Chlorella', 'Cylindrotheca', 'Dunaliella', 'Karenia', 'Skeletonema']
 file_pattern = '/home/harmel/Dropbox/work/git/vrtc/RTxploitation/RTxploitation/../study_cases/vsf/data/normalized_vsf_lov_experiment2015_xxx.txt'
-
 
 rows, cols = 6, 4
 axslin = [[0 for x in range(cols)] for x in range(rows)]
 
 irow = 0
-fig, axs = plt.subplots(rows, cols, figsize=(20, 25), sharex=True, sharey=True)
+fig, axs = plt.subplots(rows, cols, figsize=(22, 25), sharex=True, sharey=True)
 for irow, sample in enumerate(samples):
     file = file_pattern.replace('xxx', sample)
     df = pd.read_csv(file, skiprows=8, sep='\t', index_col=0, skipinitialspace=True, na_values='inf')
@@ -349,13 +381,17 @@ for irow, sample in enumerate(samples):
         divider = make_axes_locatable(ax)
         axlin = divider.append_axes("right", size=3, pad=0, sharey=ax)
         axslin[irow][icol] = axlin
-        axlin.spines['left'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        axlin.spines['left'].set_linestyle('--')
+        # axlin.spines['left'].set_linewidth(1.8)
+        axlin.spines['left'].set_color('grey')
         axlin.yaxis.set_ticks_position('right')
         axlin.yaxis.set_visible(False)
         axlin.xaxis.set_visible(False)
         axlin.set_xscale('linear')
         axlin.set_xlim((10, 190))
-        for i, (label, group) in enumerate(df.iteritems()):
+        for i, (label_, group) in enumerate(df.iteritems()):
+            label = label_.split('.')[-1] + ' nm'
             print(label)
             group_ = group.dropna()
             group_ = group_[(group_.index >= angular_range[0]) & (group_.index <= angular_range[1])]
@@ -367,7 +403,6 @@ for irow, sample in enumerate(samples):
 
             x = out1.x
 
-
             for ax_ in (ax, axlin):
                 ax_.plot(theta, vsf, color=color[i], label=label)
                 ax_.plot(theta_, func(theta_, *x), '--', color=color[i])
@@ -378,27 +413,26 @@ for irow, sample in enumerate(samples):
             #            transform=axlin.transAxes, ha="right", va="top", )
         ax.xaxis.set_major_locator(mpl.ticker.LogLocator(base=10.0, numticks=4))
         ax.yaxis.set_major_locator(mpl.ticker.LogLocator(base=10.0, numticks=10))
-        ax.xaxis.set_minor_locator(mpl.ticker.LogLocator(base=10.0, numticks=10,subs=np.arange(10)*0.1))
-        ax.yaxis.set_minor_locator(mpl.ticker.LogLocator(base=10.0, numticks=10,subs=np.arange(10)*0.1))
+        ax.xaxis.set_minor_locator(mpl.ticker.LogLocator(base=10.0, numticks=10, subs=np.arange(10) * 0.1))
+        ax.yaxis.set_minor_locator(mpl.ticker.LogLocator(base=10.0, numticks=10, subs=np.arange(10) * 0.1))
     irow += 1
 
-
-            # ax.plot(theta, vsf, color=color[i], label=label)
-            # ax.plot(theta_, func(theta_, *x), '--', color=color[i])
-            # norm = (np.trapz( func(theta_[1:], *x)*np.sin(np.radians(theta_[1:])),np.radians(theta_[1:]))*np.pi*2)
-            # bp_tilde = np.trapz( func(back_ang, *x)*np.sin(np.radians(back_ang)),np.radians(back_ang))*np.pi*2 / norm
-            # ax.text(0.95, 0.75, '$\~b_b=${:6.4f}'.format(bp_tilde), size=20,
-            #  transform=ax.transAxes, ha="right", va="top",)
+    # ax.plot(theta, vsf, color=color[i], label=label)
+    # ax.plot(theta_, func(theta_, *x), '--', color=color[i])
+    # norm = (np.trapz( func(theta_[1:], *x)*np.sin(np.radians(theta_[1:])),np.radians(theta_[1:]))*np.pi*2)
+    # bp_tilde = np.trapz( func(back_ang, *x)*np.sin(np.radians(back_ang)),np.radians(back_ang))*np.pi*2 / norm
+    # ax.text(0.95, 0.75, '$\~b_b=${:6.4f}'.format(bp_tilde), size=20,
+    #  transform=ax.transAxes, ha="right", va="top",)
 
 plt.legend()
 ax.set_ylim(ymin=0.0003, ymax=30 ** 2)
 for irow, sample in enumerate(samples):
     axslin[irow][0].text(0.95, 0.95, names[irow], size=20,
-                      transform=axslin[irow][0].transAxes, ha="right", va="top",
-                      bbox=dict(boxstyle="round",
-                                ec=(0.1, 0.1, 0.1),
-                                fc=plt.matplotlib.colors.to_rgba(color_cycle[irow], 0.3),
-                                ))
+                         transform=axslin[irow][0].transAxes, ha="right", va="top",
+                         bbox=dict(boxstyle="round",
+                                   ec=(0.1, 0.1, 0.1),
+                                   fc=plt.matplotlib.colors.to_rgba(color_cycle[irow], 0.3),
+                                   ))
     axs[irow, 0].set_ylabel(r'Phase function $(sr^{-1})$')
 for icol, model in enumerate(models):
     axslin[-1][icol].xaxis.set_visible(True)

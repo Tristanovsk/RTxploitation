@@ -31,7 +31,7 @@ class spectral_responses:
                     's2b': self.get_s2b_msi(),
                     's3a': self.get_s3a_olci(),
                     's3b': self.get_s3b_olci(),
-                    # 'meris': self.get_meris(),
+                    'meris': self.get_meris(),
                     'modisa': self.get_modisa(),
                     'modist': self.get_modist()}
         self.satellites = list(self.get.keys())
@@ -108,7 +108,7 @@ class spectral_responses:
                 self.lut.LANDSAT_OLI_B6,
                 self.lut.LANDSAT_OLI_B7,
                 self.lut.LANDSAT_OLI_B8,
-                self.lut.LANDSAT_OLI_B9])
+                self.lut.LANDSAT_OLI_B9],dtype=object)
 
     def get_s2a_msi(self):
         return np.array([self.lut.S2A_MSI_01,
@@ -123,7 +123,7 @@ class spectral_responses:
                 self.lut.S2A_MSI_09,
                 self.lut.S2A_MSI_10,
                 self.lut.S2A_MSI_11,
-                self.lut.S2A_MSI_12])
+                self.lut.S2A_MSI_12],dtype=object)
 
     def get_s2b_msi(self):
         return np.array([self.lut.S2B_MSI_01,
@@ -138,7 +138,7 @@ class spectral_responses:
                 self.lut.S2B_MSI_09,
                 self.lut.S2B_MSI_10,
                 self.lut.S2B_MSI_11,
-                self.lut.S2B_MSI_12])
+                self.lut.S2B_MSI_12],dtype=object)
 
     def get_s3a_olci(self):
         return np.array([self.lut.S3A_OLCI_01,
@@ -161,7 +161,7 @@ class spectral_responses:
                 self.lut.S3A_OLCI_18,
                 self.lut.S3A_OLCI_19,
                 self.lut.S3A_OLCI_20,
-                self.lut.S3A_OLCI_21])
+                self.lut.S3A_OLCI_21],dtype=object)
 
     def get_s3b_olci(self):
         return np.array([self.lut.S3B_OLCI_01,
@@ -184,14 +184,14 @@ class spectral_responses:
                 self.lut.S3B_OLCI_18,
                 self.lut.S3B_OLCI_19,
                 self.lut.S3B_OLCI_20,
-                self.lut.S3B_OLCI_21])
+                self.lut.S3B_OLCI_21],dtype=object)
 
     def get_meris(self):
         return np.array([self.lut.MERIS_B1, self.lut.MERIS_B2, self.lut.MERIS_B3,
                 self.lut.MERIS_B4, self.lut.MERIS_B5, self.lut.MERIS_B6,
                 self.lut.MERIS_B7, self.lut.MERIS_B9, self.lut.MERIS_B10,
                 self.lut.MERIS_B11, self.lut.MERIS_B12, self.lut.MERIS_B8,
-                self.lut.MERIS_B13, self.lut.MERIS_B14, self.lut.MERIS_B15])
+                self.lut.MERIS_B13, self.lut.MERIS_B14, self.lut.MERIS_B15],dtype=object)
 
     def get_modisa(self):
         return np.array([self.lut.ACCURATE_MODIS_AQUA_1,
@@ -205,7 +205,7 @@ class spectral_responses:
                 self.lut.ACCURATE_MODIS_AQUA_12,
                 self.lut.ACCURATE_MODIS_AQUA_13,
                 self.lut.ACCURATE_MODIS_AQUA_14,
-                self.lut.ACCURATE_MODIS_AQUA_15])
+                self.lut.ACCURATE_MODIS_AQUA_15],dtype=object)
 
     def get_modist(self):
         return np.array([self.lut.ACCURATE_MODIS_TERRA_1,
@@ -219,4 +219,4 @@ class spectral_responses:
                 self.lut.ACCURATE_MODIS_TERRA_12,
                 self.lut.ACCURATE_MODIS_TERRA_13,
                 self.lut.ACCURATE_MODIS_TERRA_14,
-                self.lut.ACCURATE_MODIS_TERRA_15])
+                self.lut.ACCURATE_MODIS_TERRA_15],dtype=object)

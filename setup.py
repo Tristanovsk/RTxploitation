@@ -1,12 +1,12 @@
 
 from setuptools import setup, find_packages
-from RTxploitation import __version__, __package__
+exec(open('RTxploitation/version.py').read())
 
 setup(
     name=__package__,
     version=__version__,
     packages=find_packages(exclude=['build']),
-    package_data={'':['*.so','*h','*angles*','*.txt','*.csv']},
+    package_data={'':['*.so','*h','*angles*','*.txt','*.csv','*.dat']},
     #     # If any package contains *.txt files, include them:
     #     '': ['*.txt'],
     #     'lut': ['data/lut/*.nc'],
@@ -21,8 +21,8 @@ setup(
     description='tools to simulate and visualize Radiative transfer related parameters',
 
     # Dependent packages (distributions)
-    install_requires=['pandas','numpy','netCDF4',
-                      'matplotlib','docopt'],
+    install_requires=['pandas','numpy','xarray','netCDF4','lmfit',
+                      'matplotlib','docopt','Py6S'],
 
     entry_points={
           'console_scripts': [

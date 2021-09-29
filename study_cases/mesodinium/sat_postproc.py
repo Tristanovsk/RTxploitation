@@ -24,7 +24,7 @@ import RTxploitation.auxdata as ad
 import study_cases.mesodinium.plot_utils as uplot
 from study_cases.mesodinium.solver_v2 import Rrs_inversion
 import study_cases.mesodinium as meso
-
+import invRrs
 plot = False
 
 opj = os.path.join
@@ -36,10 +36,14 @@ idir = '/DATA/projet/gernez/mesodinium'
 figdir = opj(idir, 'fig')
 dirdata = opj(idir,'data')
 
+idir = '/DATA/projet/ces/theia'
+figdir = opj(idir, 'fig')
+dirdata = opj(idir,'fig')
+
 sensor='s2'
 
 if sensor =='s2':
-    satfiles = glob.glob(opj(dirdata, 'satellite/S2*res_v2*.csv'))
+    satfiles = glob.glob(opj(dirdata, 'satellite/*res_v2*.csv'))
     sat_props=('s2a',list(range(9)))
     wl_max=900
 else:
@@ -47,14 +51,25 @@ else:
     sat_props=('s3a',list([0,1,2,3,4,5,6,7,8,9,10,11,15,16,17,20])) #list([0,1,2,3,4,5,6,7,8,9,10,11,14]))
     wl_max=1020
 
+if False:
+    iop_file = 'gernez_IOPs_Mrubrum.txt'
+    iops = pd.read_csv(opj(dataroot, iop_file), sep=' ', index_col=0)
+    suffix='mesodinium'
+else:
+    iop_file =  'Ciotti_et_al_2002_aphy_star_Chl_18_34_41_Sf01.txt'
+    iops = pd.read_csv(opj(dataroot,iop_file ), sep=' ', index_col=0)
+    suffix='Ciotti2002'+iop_file.split('_')[-1].replace('.txt','')
+    iops.columns = ['aphy_g','aphy_star']
 # load iop_star values
-iops = pd.read_csv(opj(dataroot, 'gernez_IOPs_Mrubrum.txt'), sep=' ', index_col=0)
+#iops = pd.read_csv(opj(dataroot, 'gernez_IOPs_Mrubrum.txt'), sep=' ', index_col=0)
 # add wavelengths to cover full range up to 1000nm
 additional_wl = np.arange(iops.index.values[-1] + 1, 1101, 1)
 iops = iops.append(pd.DataFrame([iops.iloc[-1]] * len(additional_wl), index=additional_wl))
 iops.index.name = 'wl'
 
-iops.bbp_star = 4e-4
+# Strong assumption bbp spectrally fixed
+iops['bbp_star'] = 4e-4
+
 
 a_star, bb_star = iops.aphy_star.to_xarray(), iops.bbp_star.to_xarray()
 sza=30
@@ -110,6 +125,8 @@ for satfile in satfiles:
 
         # remove SWIR bands:
         Rrs_ = Rrs_sat.iloc[:,:-2].values
+        if Rrs_.shape[0]==0:
+            continue
         wl_ = [wl_sat] * Rrs_.shape[0]
         xy_max = Rrs_.max() * 1.2 #(max(max(Rrs_sat), max(Rrs_est)) * 1.2)
 
@@ -126,7 +143,7 @@ for satfile in satfiles:
             x = sat.iloc[-5:]
 
             # satellite data
-            axs[irow,0].plot(wl_sat, Rrs_sat, color=cmap(norm(x[0])), label='Measured', lw=2.5, alpha=0.75)
+            axs[irow,0].plot(wl_sat, Rrs_sat, ':o',color=cmap(norm(x[0])), label='Measured', lw=2.5, alpha=0.75)
 
             # hyperspectral simulations
             Rrs_est = solver_hyp.forward_model(x,level='above')

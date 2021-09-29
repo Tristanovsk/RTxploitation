@@ -8,7 +8,7 @@ import lmfit as lm
 
 opj = os.path.join
 
-optimization=False
+optimization=True
 
 idir = os.path.abspath('/DATA/git/vrtc/RTxploitation/study_cases/verticality')
 figdir = opj(idir, 'figure')
