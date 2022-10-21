@@ -1,4 +1,3 @@
-
 import os, sys
 import glob
 import numpy as np
@@ -9,12 +8,15 @@ import xarray as xr
 # set plotting styles
 import cmocean as cm
 import matplotlib.pyplot as plt
+
 plt.ioff()
 plt.rcParams.update({'font.size': 16})
 
 # ----------------------------
 # sys.path.extend(['/home/harmel/Dropbox/work/VRTC/OSOAA_profile/exe/lut_package'])
 from RTxploitation import lutplot
+
+opj = os.path.join
 
 
 def walktree(top):
@@ -25,37 +27,36 @@ def walktree(top):
             yield children
 
 
-idir = '/home/harmel/VRTC/lut/sediment_density'
-# idir = '/home/harmel/VRTC/lut/nosea'
-idir = '/sat_data/vrtc/lut/scat_mat'
+idir = '/sat_data/vrtc/lut/atmo'
+odir = '/DATA/git/vrtc/RTxploitation/study_cases/aerosol/fig'
+pattern = "fine_rm0.10_sig0.40_nr1.48_ni-0.0035_coarse_rm0.81_sig0.60_nr1.48_ni-0.0035_HR8.0_HA2.0_ws2_wl0.550"
 
-odir = '/DATA/projet/VRTC/fig/nosea'
-odir = '/DATA/projet/VRTC/fig/bagré'
-odir = '/sat_data/vrtc/lut/scat_mat/fig'
-pattern = 'osoaa_nosea_aot0.1_aero_rg0.80_sig0.60_nr1.51_ni-0.02_ws2_wl*_pressure1015.2.nc'
-pattern = 'osoaa_tot_aot0.1_aero_rg0.10_sig0.46_nr1.45_ni-0.0010_ws2_chl3.00_sed200.00_*_wl0.865.nc'
-
-
-pattern='osoaa_tot_aot0.1*nr1.2_rmed10.0_wl600_wl0.600.nc'
-
-files = sorted(glob.glob(os.path.join(idir, pattern)))
 directions = ['down', 'up']
 
 lp = lutplot.plot()
 vzamax = 61
-szaidx = 3
-zidx=-1
+szaidx = 6
+zidx = -1
 if zidx == -1:
-    directions = [ 'up']
-Nrow = len(directions)
-wl=[]
+    directions = ['up']
+Nrow = 4#len(directions)
 
-for file in files:
+figfile = os.path.join(odir, pattern )
+fig, axs = plt.subplots(Nrow, 6, figsize=(30, 4+Nrow*4), subplot_kw=dict(projection='polar'))
+fig.subplots_adjust(top=0.9)
+if Nrow == 1:
+    axs = np.expand_dims(axs, axis=0)
+wl = []
 
-    lut = nc.Dataset(file)
-    wl.append(float(lut.getncattr('OSOAA.Wa'))*1e3)
+CVfs = [0.,0.2,.4,0.6, 0.8, 1]
+for iCVf, CVf in enumerate(CVfs):
+    file = "osoaa_atmo_aot0.2_CVfine{:.2f}_".format(CVf) + pattern + '.nc'
+    pfile = opj(idir, file)
 
-    figfile = os.path.join(odir, os.path.basename(file).replace('.nc', ''))
+
+    lut = nc.Dataset(pfile)
+    wl.append(float(lut.getncattr('OSOAA.Wa')) * 1e3)
+
     # print out group elements
     for children in walktree(lut):
         for child in children:
@@ -63,17 +64,12 @@ for file in files:
 
     sza = lut.variables['sza'][:]
 
-    fig, axs = plt.subplots(Nrow, 4, figsize=(24, 13), subplot_kw=dict(projection='polar'))
-    if Nrow ==1:
-        axs=np.expand_dims(axs,axis=0)
-    fig.subplots_adjust(top=0.9)
     for i, direction in enumerate(directions):
         print(i, direction)
 
         # ----------------------------
         # get data group
         stokes = lut['stokes/' + direction]
-
 
         # ----------------------------
         # get dimensions
@@ -89,7 +85,7 @@ for file in files:
 
         # ----------------------------
         # get data values
-        Idf=stokes.variables['I'][:]
+        Idf = stokes.variables['I'][:]
         Qdf = stokes.variables['Q'][:]
         Udf = stokes.variables['U'][:]
 
@@ -102,16 +98,16 @@ for file in files:
 
         # ----------------------------
         # plot polar diagrams
-        cmap = cm.tools.crop_by_percent(cm.cm.delta, 10, which='min', N=None)
-        lp.add_polplot(axs[i, 0], r, theta, I, title='I(' + direction + ')', cmap=cmap)
+        cmap = plt.cm.Spectral_r #cm.tools.crop_by_percent(cm.cm.delta, 10, which='min', N=None)
+        lp.add_polplot(axs[0, iCVf], r, theta, I, title='CVf={:.2f}'.format(CVf), cmap=cmap,minmax=(0.035,0.09))
         cmap = cm.tools.crop_by_percent(cm.cm.balance, 20, which='both', N=None)
-        lp.add_polplot(axs[i, 1], r, theta, Q, title='Q(' + direction + ')', cmap=cmap)
+        lp.add_polplot(axs[1, iCVf], r, theta, Q, title='Q(' + direction + ')', cmap=cmap)
         cmap = cm.tools.crop_by_percent(cm.cm.balance, 1, which='both', N=None)
-        lp.add_polplot(axs[i, 2], r, theta, U, title='U(' + direction + ')', cmap=cmap)
+        lp.add_polplot(axs[2, iCVf], r, theta, U, title='U(' + direction + ')', cmap=cmap)
         cmap = cm.tools.crop_by_percent(cm.cm.oxy, 1, which='min', N=None)
-        lp.add_polplot(axs[i, 3], r, theta, DOP, title='DOP(' + direction + ')', cmap=cmap, colfmt='%0.2f')
+        lp.add_polplot(axs[3, iCVf], r, theta, DOP, title='DOP(' + direction + ')', cmap=cmap, colfmt='%0.2f')
 
-    plt.suptitle(os.path.basename(file) + ' at SZA = ' + str(sza[szaidx]) + ' deg', fontdict=lp.font)
-    plt.tight_layout()
-    plt.savefig(figfile + '.png', dpi=300, bbox_inches='tight')
-    plt.close()
+plt.suptitle(os.path.basename(file) + ' at SZA = ' + str(sza[szaidx]) + ' deg', fontdict=lp.font)
+plt.tight_layout()
+plt.savefig(figfile +'_sza'+ str(sza[szaidx])+ '.png', dpi=300, bbox_inches='tight')
+plt.close()
