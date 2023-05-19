@@ -17,6 +17,10 @@ plt.rcParams["font.serif"] = ["Times New Roman"] + plt.rcParams["font.serif"]
 
 plt.rcParams.update({'font.size': 18, 'axes.labelsize': 22})
 
+
+odir = '/DATA/git/vrtc/RTxploitation/study_cases/aerosol/fig/psd'
+
+
 # --------------------------
 # Size distrib param
 rn_med_f, sigma_f = 0.1, 0.4
@@ -58,9 +62,9 @@ cmap = mpl.colors.LinearSegmentedColormap.from_list("",
 norm = mpl.colors.Normalize(vmin=0, vmax=1)
 sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
 sm.set_array([])
-fig, axs = plt.subplots(2, 1, figsize=(7, 11), sharex=True)
+fig, axs = plt.subplots(1, 2, figsize=(14, 5), sharex=True)
 # fig.subplots_adjust(bottom=0.15, top=0.94, left=0.1, right=0.975,hspace=0.05,wspace=0.25)
-fig.subplots_adjust(bottom=0.1, top=0.96, left=0.2, right=0.95, hspace=0.05, wspace=0.25)
+fig.subplots_adjust(bottom=0.15, top=0.96, left=0.1, right=0.975, hspace=0.05, wspace=0.3)
 ax = axs[0]
 # ax.plot(r, psdN_f)
 # ax.plot(r, psdN_c)
@@ -69,11 +73,11 @@ for cvf in cvfs:
     ax.plot(r,r*(cvf/V0_f*psdN_f+(1-cvf)/V0_c*psdN_c),color=cmap(norm(cvf)),label='CVfine{:.3f}'.format(cvf))
     ax.plot(r,r *(cvf* psdV_f+(1-cvf)*psdV_c)/vol,ls='--',color=cmap(norm(cvf)))
 ax.loglog()
-ax.tick_params(axis='x', which='major', length=7, width=1.2)
-ax.tick_params(axis='x', which='minor', length=4)
+ax.tick_params(axis='x', top='on', which='major', length=7, width=1.2)
+ax.tick_params(axis='x', top='on', which='minor', length=4)
 #ax.set_ylabel(r'$dN(r)/dr\ (\mu m^{-1} \cdot \ cm^{-3})$')
 ax.set_ylabel(r'$dN(r)/dlogr\ (cm^{-3})$')
-# ax.set_xlabel(r'$Radius\ (\mu m)$')
+ax.set_xlabel(r'$Radius\ (\mu m)$')
 ax.legend(fontsize=13)
 #ax.set_ylim([1e-7, 0.2e2])
 ax.text(-0.225, .96, '(a)', transform=ax.transAxes, size=18)  # , weight='bold')
@@ -84,8 +88,8 @@ ax = axs[1]
 for cvf in cvfs:
     print(cvf,(1-cvf)/cvf)
     ax.plot(r, r *(cvf* psdV_f+(1-cvf)*psdV_c),color=cmap(norm(cvf)),label='CVfine{:.3f}'.format(cvf))
-ax.tick_params(axis='x', which='major', length=7, width=1.2)
-ax.tick_params(axis='x', which='minor', length=4)
+ax.tick_params(axis='x', top='on',which='major', length=7, width=1.2)
+ax.tick_params(axis='x',top='on', which='minor', length=4)
 # ax2 = ax.twinx()
 
 ax.set_ylabel(r'$dV(r)/dlogr\ (\mu m^3\cdot \ cm^{-3})$')
@@ -97,6 +101,7 @@ ax.set_xlim([0.01, 200])
 ax.text(-0.225, .96, '(b)', transform=ax.transAxes, size=18)  # , weight='bold')
 
 ax.legend(fontsize=13)
+plt.savefig(os.path.join(odir,'size_bimodal_v2.png'), dpi=300)
 plt.show()
 
 for cvf in cvfs:

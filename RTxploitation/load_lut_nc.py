@@ -52,7 +52,7 @@ def load_osoaa(prefix='osoaa_tot_aot0.1_aero_rg0.10_sig0.46_nr1.45_ni-0.0010_ws2
         wl = lut.getncattr('OSOAA.Wa')
         sza = lut.variables['sza'][:]
         Stokes = xr.open_dataset(file, group='stokes/' + direction).assign_coords({'sza': sza}).isel(z=z_slice)
-
+        flux = xr.open_dataset(file, group='flux').assign_coords({'sza': sza}).sel(z=Stokes.z)
         if water_signal:
             file_nosea = os.path.join(idir,prefix.replace('_tot', '_nosea') + '_wl%s.nc' % wl)
             lut_nosea = nc.Dataset(file_nosea)
@@ -62,6 +62,7 @@ def load_osoaa(prefix='osoaa_tot_aot0.1_aero_rg0.10_sig0.46_nr1.45_ni-0.0010_ws2
 
         sza = Stokes.sza
         Rstokes = Stokes / np.cos(np.radians(sza)) / np.pi
-        xStokes.append(Rstokes.assign_coords({'wavelength': float(wl) * 1000}))
+        xStokes_ = xr.merge([flux, Rstokes])
+        xStokes.append(xStokes_.assign_coords({'wavelength': float(wl) * 1000}))
 
     return xr.concat(xStokes, dim='wavelength')
