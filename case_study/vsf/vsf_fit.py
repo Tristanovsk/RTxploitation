@@ -29,11 +29,11 @@ plt.rcParams["font.serif"] = ["Times New Roman"] + plt.rcParams["font.serif"]
 import lmfit as lm
 
 import RTxploitation as rtx
-import study_cases.vsf as vsf
+import case_study.vsf as vsf
 
 m = vsf.phase_function_models.models()
 
-dir = opj('/DATA/git/vrtc/RTxploitation/', 'study_cases', 'vsf', )
+dir = opj('/DATA/git/vrtc/RTxploitation/', 'case_study', 'vsf', )
 dirdata = opj(dir, 'data')
 
 trunc = False
@@ -190,7 +190,7 @@ models = (FF_fit, RM_fit, FFRM_fit, TTRM_fit)
 samples = ['Arizona', 'Chlorella', 'Cylindrotheca', 'Dunaliella', 'Karenia', 'Skeletonema']
 names = ['Arizona dust', r'$\it{C. autotrophica}$', r'$\it{C. closterium}$', r'$\it{D. salina}$',
          r'$\it{K. mikimotoi}$', r'$\it{S. cf. costatum}$']
-file_pattern = '/home/harmel/Dropbox/work/git/vrtc/RTxploitation/RTxploitation/../study_cases/vsf/data/normalized_vsf_lov_experiment2015_xxx.txt'
+file_pattern = '/home/harmel/Dropbox/work/git/vrtc/RTxploitation/RTxploitation/../case_study/vsf/data/normalized_vsf_lov_experiment2015_xxx.txt'
 
 theta_ = np.linspace(0, 180, 100000)
 back_ang = theta_[theta_ > 90]
@@ -300,7 +300,7 @@ for param in ('redchi',):  # 'bic','aic','bb_ratio','asymmetry_factor'):
 fig, axs = plt.subplots(4, 2, figsize=(10, 12), sharex=True)
 
 axs = axs.ravel()
-labels = ['$\gamma$', '$g_1$', '$g_2$', r'$\alpha _1$', r'$\alpha_2$', '$\~b_b$', r'$<cos\theta >$']
+labels = [r'$\gamma$', '$g_1$', '$g_2$', r'$\alpha _1$', r'$\alpha_2$', r'$\~b_b$', r'$<cos\theta >$']
 for i, param in enumerate(['gamma', 'g1', 'g2', 'alpha1', 'alpha2', 'bb_ratio', 'asymmetry_factor']):
     ax = axs[i]
     ax.set_ylabel(labels[i])
@@ -362,7 +362,7 @@ for file in files:
 
 models = (FF_fit, RM_fit, FFRM_fit, TTRM_fit)
 samples = ['Arizona', 'Chlorella', 'Cylindrotheca', 'Dunaliella', 'Karenia', 'Skeletonema']
-file_pattern = '/home/harmel/Dropbox/work/git/vrtc/RTxploitation/RTxploitation/../study_cases/vsf/data/normalized_vsf_lov_experiment2015_xxx.txt'
+file_pattern = '/home/harmel/Dropbox/work/git/vrtc/RTxploitation/RTxploitation/../case_study/vsf/data/normalized_vsf_lov_experiment2015_xxx.txt'
 
 rows, cols = 6, 4
 axslin = [[0 for x in range(cols)] for x in range(rows)]

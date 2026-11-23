@@ -23,11 +23,11 @@ plt.rcParams.update({'font.family': 'Times New Roman',
 import lmfit as lm
 
 import RTxploitation as rtx
-import study_cases.vsf as vsf
+import case_study.vsf as vsf
 
 m = vsf.phase_function_models.models()
 
-dir = opj(rtx.__path__[0], '..', 'study_cases', 'vsf', )
+dir = opj(rtx.__path__[0], '..', 'case_study', 'vsf', )
 dirdata = opj(dir, 'data')
 dirfig = opj(dir, 'fig')
 
@@ -148,8 +148,8 @@ def TTFF_fit(theta, vsf):
 # fitting section
 # -------------------
 models = (FF_fit, RM_fit, TTFF_fit, TTRM_fit)
-file = '/home/harmel/Dropbox/work/git/vrtc/RTxploitation/RTxploitation/../study_cases/vsf/data/petzold_data.txt'
-df = pd.read_csv(file, skiprows=3, sep='\s+', index_col=0, skipinitialspace=True, na_values='inf')
+file = '/home/harmel/Dropbox/work/git/vrtc/RTxploitation/RTxploitation/../case_study/vsf/data/petzold_data.txt'
+df = pd.read_csv(file, skiprows=3, sep=r'\s+', index_col=0, skipinitialspace=True, na_values='inf')
 
 angular_range = [10, 170]
 
@@ -337,7 +337,7 @@ for i, (label, group) in enumerate(df.iteritems()):
         bp_tilde = np.trapz(func(back_ang, *x) * np.sin(np.radians(back_ang)), np.radians(back_ang)) * np.pi * 2 / norm
         asym = np.trapz(func(theta_[1:], *x) * np.sin(np.radians(theta_[1:]) * np.cos(np.radians(theta_[1:]))),
                                np.radians(theta_[1:])) * np.pi * 2
-        axlin.text(0.95, 0.75, '$\~b_b=${:6.4f}'.format(bp_tilde), size=20,
+        axlin.text(0.95, 0.75, r'$\~b_b=${:6.4f}'.format(bp_tilde), size=20,
                    transform=axlin.transAxes, ha="right", va="top", )
         axlin.text(0.95, 0.65, r'$<cos \theta > =${:6.3f}'.format(asym), size=20,
                    transform=axlin.transAxes, ha="right", va="top", )

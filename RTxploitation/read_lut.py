@@ -1,3 +1,9 @@
+"""
+Read a series of OSOAA netCDF LUT files (aerosol optical thickness x
+wavelength) into xarray objects and plot test figures.
+
+This is a script: it is executed on import (paths are hard-coded).
+"""
 import os, sys
 import glob
 import numpy as np

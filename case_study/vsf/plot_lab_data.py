@@ -5,14 +5,14 @@ import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 plt.ioff()
-import study_cases.vsf as vsf
+import case_study.vsf as vsf
 
 opj = os.path.join
 dirfig = opj(vsf.__path__[0], 'fig')
 fit = vsf.phase_function_models.inversion()
 
 pfs=pd.read_csv('./data/tabulated_phase_function_feb2015_full.txt',
-                skiprows=11,index_col=0,na_values='NA', sep='\s+')
+                skiprows=11,index_col=0,na_values='NA', sep=r'\s+')
 pfs= pfs[pfs.index>0.5]
 names=['Arizona dust', 'C. autotrophica', 'C. closterium',
        'D. salina', 'K. mikimotoi', 'S. cf. costatum']

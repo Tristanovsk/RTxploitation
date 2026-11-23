@@ -10,7 +10,7 @@ opj = os.path.join
 
 optimization=True
 
-idir = os.path.abspath('/DATA/git/vrtc/RTxploitation/study_cases/verticality')
+idir = os.path.abspath('/case_study/verticality')
 figdir = opj(idir, 'figure')
 file = opj(idir, 'data/leman_chlorophylle_1430213014157-121850.csv')
 
@@ -213,7 +213,7 @@ chl_max=15
 sig=5
 for z_max in [2,5,15]:
     B0=return_B0(chl_tot,30,chl_max, z_max, sig)
-    label='$B_0=%.1f,Chl_{max}=%2d,z_{max}=%2d,\sigma=%2d$'%(B0,chl_max, z_max, sig)
+    label=r'$B_0=%.1f,Chl_{max}=%2d,z_{max}=%2d,\sigma=%2d$'%(B0,chl_max, z_max, sig)
     ax.plot(osoaa_gauss_profile(depth, B0, chl_max, z_max, sig), depth, '--', label=label, lw=2.5, alpha=0.6)
 chl_max=0
 B0=return_B0(chl_tot,30,chl_max, z_max, sig)

@@ -1,3 +1,6 @@
+"""
+Load OSOAA netCDF look-up tables into :class:`xarray.Dataset` objects.
+"""
 import os, sys
 
 opj = os.path.join
@@ -18,7 +21,13 @@ plt.rcParams.update({'font.size': 16})
 
 
 def s2f(list):
-    return np.array(list).astype(np.float)
+    """
+    Convert a list (e.g., of strings) into a numpy array of floats.
+
+    :param list: sequence of values convertible to float
+    :return: numpy array of floats
+    """
+    return np.array(list).astype(float)
 
 
 def load_osoaa(prefix='osoaa_tot_aot0.1_aero_rg0.10_sig0.46_nr1.45_ni-0.0010_ws2',
@@ -29,14 +38,24 @@ def load_osoaa(prefix='osoaa_tot_aot0.1_aero_rg0.10_sig0.46_nr1.45_ni-0.0010_ws2
                z_slice=[-3, -2, -1],
                ):
     '''
+    Load a set of OSOAA netCDF files (one per wavelength) and merge them
+    into a single dataset along the ``wavelength`` dimension.
 
-    :param prefix:
-    :param labels:
-    :param direction:
-    :param idir:
-    :param water_signal:
-    :param IQU:
-    :return:
+    Files are expected to be named ``idir/prefix + label + '.nc'`` for each
+    ``label`` in ``labels``; missing files are skipped with a warning.
+    The Stokes parameters are converted into reflectance-like quantities,
+    ``Stokes / cos(sza) / pi``, and merged with the irradiance fluxes.
+
+    :param prefix: common part of the file names
+    :param labels: list of file name suffixes (without the ``.nc`` extension)
+    :param direction: Stokes group to read, ``'up'`` or ``'down'``
+    :param idir: directory containing the netCDF files
+    :param water_signal: if True, subtract the corresponding simulation
+        without sea (file name with ``_tot`` replaced by ``_nosea``) to keep
+        only the water-leaving contribution
+    :param z_slice: indices of the vertical levels ``z`` to keep
+    :return: :class:`xarray.Dataset` with fluxes and normalized Stokes
+        parameters, concatenated along ``wavelength`` (nm)
     '''
 
     xStokes = []

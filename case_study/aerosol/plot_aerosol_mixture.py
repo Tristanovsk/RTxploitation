@@ -1,5 +1,20 @@
-import os, sys
-import glob
+"""
+Fine/coarse aerosol mixture: per-wavelength diagnostics.
+
+Same analysis as ``check_ssa_approx_mixture.py`` but done independently for
+each wavelength: for each wavelength, OSOAA atmosphere-only LUTs computed for
+several fine-mode volume fractions (CVfine) are loaded and
+
+- (optional, ``plot_polar_stokes``) polar diagrams of I, Q, U and DOP are drawn,
+- the aerosol scattering matrix terms (P11, P12, P33) are plotted,
+- the linear mixing approximation
+  ``I_mix ~ gamma_f I_fine + gamma_c I_coarse`` is mapped against the exact
+  OSOAA radiance.
+
+Input: OSOAA netCDF LUTs in ``idir`` (``osoaa_atmo_aot0.2_CVfine*.nc``)
+Output: figures in ``odir``
+"""
+import os
 import numpy as np
 import netCDF4 as nc
 import xarray as xr
@@ -14,14 +29,16 @@ plt.ioff()
 plt.rcParams.update({'font.size': 16})
 
 # ----------------------------
-# sys.path.extend(['/home/harmel/Dropbox/work/VRTC/OSOAA_profile/exe/lut_package'])
 from RTxploitation import lutplot
 
 opj = os.path.join
-for wl in [0.400,0.5,0.6,0.7,0.8,1,1.6,2.2]:
-    # set absolute path
-    idir = '/sat_data/vrtc/lut/atmo'
-    odir = '/DATA/git/vrtc/RTxploitation/study_cases/aerosol/fig'
+
+# set absolute path
+idir = '/sat_data/vrtc/lut/atmo'
+odir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fig')
+plot_polar_stokes = False  # set True to draw the I, Q, U, DOP polar diagrams
+
+for wl in [0.400, 0.5, 0.6, 0.7, 0.8, 1, 1.6, 2.2]:
     pattern = "fine_rm0.10_sig0.40_nr1.48_ni-0.0035_coarse_rm0.81_sig0.60_nr1.48_ni-0.0035_HR8.0_HA2.0_ws2_wl{:0.3f}".format(wl)
 
     directions = ['down', 'up']
@@ -42,10 +59,9 @@ for wl in [0.400,0.5,0.6,0.7,0.8,1,1.6,2.2]:
         file = "osoaa_atmo_aot0.2_CVfine{:.2f}_".format(CVf) + pattern + '.nc'
         pfile = opj(idir, file)
 
-        lut = nc.Dataset(pfile)
-
-        wl = lut.getncattr('OSOAA.Wa')
-        sza = lut.variables['sza'][:]
+        with nc.Dataset(pfile) as ds:
+            wl_str = ds.getncattr('OSOAA.Wa')
+            sza = ds.variables['sza'][:]
         aerosol = xr.open_dataset(pfile, group='optical_properties/aerosol/'
                                   ).assign_coords({'CVfine': CVf}
                                                   ).set_coords('wl').expand_dims(['wl', 'CVfine'])
@@ -69,7 +85,7 @@ for wl in [0.400,0.5,0.6,0.7,0.8,1,1.6,2.2]:
     szaidx = 3
 
     Nrow = 4  # len(directions)
-    if False:
+    if plot_polar_stokes:
         figfile = os.path.join(odir, pattern)
         fig, axs = plt.subplots(Nrow, 6, figsize=(30, 4 + Nrow * 4), subplot_kw=dict(projection='polar'))
         fig.subplots_adjust(top=0.9)
@@ -115,7 +131,7 @@ for wl in [0.400,0.5,0.6,0.7,0.8,1,1.6,2.2]:
             cmap = cm.tools.crop_by_percent(cm.cm.oxy, 1, which='min', N=None)
             lp.add_polplot(axs[3, iCVf], r, theta, DOP, title='DOP(' + direction + ')', cmap=cmap, colfmt='%0.2f', minmax=minmaxDOP)
 
-        plt.suptitle(os.path.basename(file) + ' at SZA = ' + str(sza[szaidx]) + ' deg', fontdict=lp.font)
+        plt.suptitle(os.path.basename(file) + ' at SZA = ' + str(sza[szaidx]) + ' deg', **lp.font)
         plt.tight_layout()
         plt.savefig(figfile + '_sza' + str(sza[szaidx]) + suff +'.png', dpi=300, bbox_inches='tight')
         plt.close()
@@ -147,13 +163,13 @@ for wl in [0.400,0.5,0.6,0.7,0.8,1,1.6,2.2]:
     axs[1].set_title('$P_{12}$')
     axs[2].set_title('$P_{33}$')
     for i in range(3):
-        axs[i].set_xlabel('$Scattering\ angle\ (deg)$')
+        axs[i].set_xlabel(r'$Scattering\ angle\ (deg)$')
     axs[0].semilogy()
 
     axs[0].legend( loc='upper right',fontsize=11)
     figfile = os.path.join(odir, 'scat_mat','aerosol_scattering_matrix')
     plt.tight_layout()
-    plt.savefig(figfile +  '_wl' + wl + '.png', dpi=300)
+    plt.savefig(figfile +  '_wl' + wl_str + '.png', dpi=300)
 
 
     #--------------------------
@@ -253,7 +269,7 @@ for wl in [0.400,0.5,0.6,0.7,0.8,1,1.6,2.2]:
 
             figfile = os.path.join(odir, 'compar_aerosol_mode_mixture')
             plt.tight_layout()
-            plt.savefig(figfile + '_sza' + str(sza[szaidx]) + '_CVfine{:.2f}'.format(CVf) + '_wl' + wl + '.png', dpi=300)
+            plt.savefig(figfile + '_sza' + str(sza[szaidx]) + '_CVfine{:.2f}'.format(CVf) + '_wl' + wl_str + '.png', dpi=300)
             plt.close()
 
     plt.show()

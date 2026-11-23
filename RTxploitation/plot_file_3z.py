@@ -1,3 +1,10 @@
+"""
+Plot polar diagrams of the I, Q, U Stokes parameters, degree (DoLP) and
+angle (AoLP) of linear polarization from OSOAA netCDF LUT files, for three
+vertical levels.
+
+This is a script: it is executed on import (paths are hard-coded).
+"""
 
 import os, sys
 import glob
@@ -51,6 +58,10 @@ idir = '/sat_data/vrtc/lut/scat_mat'
 odir = '/sat_data/vrtc/lut/scat_mat/fig'
 pattern='osoaa_tot_aot0.1*nr1.15_rmed1.0_wl0.400.nc'
 
+
+idir = '/sat_data/vrtc/lut/atmo'
+odir = '/sat_data/vrtc/lut/atmo/fig'
+pattern='osoaa_water_bottom_albedo_1_aot0.001_aerARCT*_wl0.350.nc'
 
 files = sorted(glob.glob(os.path.join(idir, pattern)))
 directions = ['down', 'up']

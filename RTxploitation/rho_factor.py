@@ -1,3 +1,9 @@
+"""
+Compute and plot the sea surface reflectance factor (rho) and rho matrix
+from the upward and downward Stokes parameters of OSOAA LUT files.
+
+This is a script: it is executed on import (paths are hard-coded).
+"""
 import os, sys
 import glob
 import numpy as np

@@ -1,14 +1,19 @@
+"""
+Bimodal (fine + coarse) lognormal aerosol size distributions.
+
+Plots, for several fine-mode volume fractions (CVfine), the number size
+distribution dN/dlogr and the volume size distribution dV/dlogr of the
+fine/coarse mixture used for the GRS aerosol LUTs
+(fine: rn_med=0.1 um, sigma=0.4; coarse: rn_med=0.81 um, sigma=0.6).
+
+Output: ``fig/psd/size_bimodal_v2.png``
+"""
 import os
 
 import numpy as np
-import pandas as pd
-import xarray as xr
-import glob
-from scipy.integrate import trapz  # import a single function for integration using trapezoidal rule
-
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from RTxploitation.psd import psd, size_param
+from RTxploitation.psd import psd
 
 rc = {"font.family": "serif",
       "mathtext.fontset": "stix"}
@@ -18,7 +23,8 @@ plt.rcParams["font.serif"] = ["Times New Roman"] + plt.rcParams["font.serif"]
 plt.rcParams.update({'font.size': 18, 'axes.labelsize': 22})
 
 
-odir = '/DATA/git/vrtc/RTxploitation/study_cases/aerosol/fig/psd'
+odir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fig', 'psd')
+os.makedirs(odir, exist_ok=True)
 
 
 # --------------------------
@@ -34,7 +40,9 @@ psdN_c = psd().lognorm(r, rn_med=rn_med_c, sigma=sigma_c)
 
 
 def V0_lognorm(rn_med=0.1, sigma=0.4):
-    return 4 / 3 * np.pi * np.exp(3 * np.log(rn_med) + 4.5 * sigma * 2)
+    """Mean particle volume of a lognormal number distribution (um^3):
+    4/3 pi exp(3 ln(rn_med) + 9/2 sigma^2)."""
+    return 4 / 3 * np.pi * np.exp(3 * np.log(rn_med) + 4.5 * sigma ** 2)
 
 
 V0_f = V0_lognorm(rn_med=rn_med_f, sigma=sigma_f)
@@ -42,13 +50,6 @@ V0_c = V0_lognorm(rn_med=rn_med_c, sigma=sigma_c)
 psdV_f = vol / V0_f * psdN_f
 psdV_c = vol / V0_c * psdN_c
 
-#
-#
-# rv_mod = size_param.rmed2rmod(rv_med, sig)
-# rn_med = rvmod2rnmed(rv_mod, sig)
-# rn_mod = rmed2rmod(rn_med, sig)
-# muv=np.log(rv_med)
-# mun=np.log(rn_med)
 
 # ----------------
 # plot dN/dr and dV/dlogr
@@ -73,8 +74,8 @@ for cvf in cvfs:
     ax.plot(r,r*(cvf/V0_f*psdN_f+(1-cvf)/V0_c*psdN_c),color=cmap(norm(cvf)),label='CVfine{:.3f}'.format(cvf))
     ax.plot(r,r *(cvf* psdV_f+(1-cvf)*psdV_c)/vol,ls='--',color=cmap(norm(cvf)))
 ax.loglog()
-ax.tick_params(axis='x', top='on', which='major', length=7, width=1.2)
-ax.tick_params(axis='x', top='on', which='minor', length=4)
+ax.tick_params(axis='x', top=True, which='major', length=7, width=1.2)
+ax.tick_params(axis='x', top=True, which='minor', length=4)
 #ax.set_ylabel(r'$dN(r)/dr\ (\mu m^{-1} \cdot \ cm^{-3})$')
 ax.set_ylabel(r'$dN(r)/dlogr\ (cm^{-3})$')
 ax.set_xlabel(r'$Radius\ (\mu m)$')
@@ -86,10 +87,9 @@ ax = axs[1]
 # ax.plot(r, r * psdV_f)
 # ax.plot(r, r * psdV_c)
 for cvf in cvfs:
-    print(cvf,(1-cvf)/cvf)
     ax.plot(r, r *(cvf* psdV_f+(1-cvf)*psdV_c),color=cmap(norm(cvf)),label='CVfine{:.3f}'.format(cvf))
-ax.tick_params(axis='x', top='on',which='major', length=7, width=1.2)
-ax.tick_params(axis='x',top='on', which='minor', length=4)
+ax.tick_params(axis='x', top=True,which='major', length=7, width=1.2)
+ax.tick_params(axis='x',top=True, which='minor', length=4)
 # ax2 = ax.twinx()
 
 ax.set_ylabel(r'$dV(r)/dlogr\ (\mu m^3\cdot \ cm^{-3})$')
@@ -109,7 +109,5 @@ for cvf in cvfs:
     cnf=cvf/V0_f
     cnc=(1-cvf)/V0_c
     N0 = cnc+cnf
-    print(cvf,(1-cvf)/cvf,cnf/N0)
-CVc_CVf = (1-cvf)/cvf
-# plt.savefig('fig/PSD_dN_dr_dV_dlogr_SPM_power_law_'+lut+'.png',dpi=300)
-#
+    # CVfine, CVcoarse/CVfine ratio, fine-mode number fraction
+    print(cvf, (1 - cvf) / cvf, cnf / N0)

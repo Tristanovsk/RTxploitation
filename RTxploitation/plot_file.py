@@ -1,3 +1,9 @@
+"""
+Plot polar diagrams of the I, Q, U Stokes parameters and degree of
+polarization (DOP) from OSOAA netCDF LUT files, for one vertical level.
+
+This is a script: it is executed on import (paths are hard-coded).
+"""
 
 import os, sys
 import glob

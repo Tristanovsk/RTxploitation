@@ -211,9 +211,9 @@ for szaidx in (1, 3, 5):
     g = Ixr.isel(sza=szaidx, azi=aziidx, vza=vzaidx, z=[0, 1, 2]).plot.line(x='sed', marker='o', row='z', hue='model',
                                                                             col='wl')
     g.set_xlabels('SPM in mg/L')
-    g.set_ylabels('$R_{rs}\ (sr^{-1})$')
+    g.set_ylabels(r'$R_{rs}\ (sr^{-1})$')
     plt.suptitle('SZA = ' + sza_ + ' deg, VZA = ' + str(vza[vzaidx]) + ' deg, AZI = ' + str(azi[aziidx]),
-                 fontdict=lp.font)
+                 **lp.font)
     plt.tight_layout(rect=[0.0, 0., 0.9, 0.9])
 
     plt.savefig(opj(odir, 'onedir', figfile + '_sza' + sza_ + '_onedir.png'), dpi=300)
@@ -253,7 +253,7 @@ for szaidx in (1, 3, 5):
                 cax = lp.add_polplot(axs[isize, ised], r, theta, I, title='$R_{rs}$ (' + sed + 'mg/L - ' + size + ')',
                                      nlayers=50, scale=False, cmap=cmap)  # , vmin=0, vmax=vmax)
         lp.label_polplot(axs[0, 0])
-        plt.suptitle('$R_{rs}\ (sr^{-1})$ at ' + wl + ' micron, SZA = ' + str(sza[szaidx]) + ' deg', size=22)
+        plt.suptitle(r'$R_{rs}\ (sr^{-1})$ at ' + wl + ' micron, SZA = ' + str(sza[szaidx]) + ' deg', size=22)
         plt.tight_layout(rect=[0.0, 0.0, 0.99, 0.95])
         fig.colorbar(cax, ax=axs.ravel().tolist())
 
@@ -304,7 +304,7 @@ for zidx in [1]:
                                colfmt='%0.2f')
 
             plt.suptitle( 'SPM = ' + str(sed_[ised]) + ' mg/L, SZA = ' +
-                            str(sza[szaidx]) + 'deg, wl = ' + wl + 'micron, level = '+levels[zidx], fontdict=lp.font)
+                            str(sza[szaidx]) + 'deg, wl = ' + wl + 'micron, level = '+levels[zidx], **lp.font)
             plt.tight_layout(rect=[0.0, 0.0, 0.99, 0.95])
             plt.savefig(stokesfig, dpi=300, bbox_inches='tight')
             plt.close()
@@ -348,7 +348,7 @@ for ised in [0,2,6,10]:
                                colfmt='%0.2f')
 
             plt.suptitle( 'SPM = ' + str(sed_[ised]) + ' mg/L, SZA = ' +
-                            str(sza[szaidx]) + 'deg, wl = ' + wl + 'micron, level = '+levels[zidx], fontdict=lp.font)
+                            str(sza[szaidx]) + 'deg, wl = ' + wl + 'micron, level = '+levels[zidx], **lp.font)
             plt.tight_layout(rect=[0.0, 0.0, 0.99, 0.95])
             plt.savefig(stokesfig, dpi=300, bbox_inches='tight')
             plt.close()

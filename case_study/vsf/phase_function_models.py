@@ -9,7 +9,7 @@ import lmfit as lm
 
 import RTxploitation as rtx
 
-dir = opj(rtx.__path__[0], '..', 'study_cases', 'vsf', )
+dir = opj(rtx.__path__[0], '..', 'case_study', 'vsf', )
 dirdata = opj(dir, 'data')
 dirfig = opj(dir, 'fig')
 

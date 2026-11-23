@@ -1,4 +1,20 @@
-import os, copy
+"""
+Impact of floating plastics on the top-of-atmosphere (TOA) signal.
+
+Measured surface (BOA) reflectance spectra of targets with increasing
+plastic pixel coverage are propagated to TOA with the 6S radiative transfer
+code (Py6S): for each wavelength, 6S is run with a Lambertian ground
+reflectance to get the gaseous and scattering transmittances and the
+atmospheric intrinsic reflectance/radiance, then
+
+    rho_TOA = T_gas * T_scat * rho_BOA + rho_atm
+    L_TOA = Es_TOA / pi * T_gas * T_scat * rho_BOA + L_atm
+
+Input: ``Harmel_Sample.xlsx`` (BOA reflectance vs pixel coverage)
+Output: ``fig/plastic_impact_boa_toa_*.png``
+"""
+import os
+import copy
 import numpy as np
 import pandas as pd
 from multiprocessing.dummy import Pool
@@ -8,11 +24,11 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 plt.ioff()
 plt.rcParams.update({'font.size': 16})
 
-from Py6S import *
+from Py6S import SixS, AeroProfile, Wavelength, GroundReflectance
 
 opj = os.path.join
-dir = os.path.abspath('/DATA/projet/garaba/boa_to_toa')
-file = opj(dir, 'Harmel_Sample.xlsx')
+idir = os.path.abspath('/DATA/projet/garaba/boa_to_toa')
+file = opj(idir, 'Harmel_Sample.xlsx')
 
 df = pd.read_excel(file, skiprows=2, index_col=0)
 wl = df.index
@@ -39,12 +55,10 @@ s.aot550 = aot
 s.aero_profile = AeroProfile.PredefinedType(aerosol[1])
 
 
-# wavelengths, results = SixSHelpers.Wavelengths.run_wavelengths(s, wl / 1000)
-
 def proc(p):
+    '''Run 6S for one (wavelength (nm), ground reflectance) pair.'''
     wl, ground_reflec = p
     wl = wl / 1000  # convert nm -> microns
-    print(wl)
     s.outputs = None
     a = copy.deepcopy(s)
     a.wavelength = Wavelength(wl)
@@ -55,7 +69,7 @@ def proc(p):
 
 
 pool = Pool()
-refl_spectrum = df.iloc[:, 1].reset_index().__array__()
+refl_spectrum = df.iloc[:, 1].reset_index().to_numpy()
 results = pool.map(proc, refl_spectrum)
 pool.close()
 pool.join()
@@ -64,7 +78,6 @@ F0, trans_gas, trans_scat, irradiance, = [], [], [], []
 toa_refl, intrinsic_refl, intrinsic_rad = [], [], []
 
 for res in results:
-    print(res.atmospheric_intrinsic_reflectance)
     F0 = np.append(F0, res.solar_spectrum)
     trans_scat = np.append(trans_scat, res.transmittance_total_scattering.total)
     trans_gas = np.append(trans_gas, res.transmittance_global_gas.total)
@@ -89,8 +102,7 @@ nrows = 3
 fig, axs = plt.subplots(nrows=nrows, figsize=(12, 15))
 axs = axs.ravel()
 axs[0].plot(wl, trans_tot, '--k')
-for pixcov, group in df.iteritems():
-    print(pixcov)
+for pixcov, group in df.items():
 
     y = group.values
     axs[0].plot(wl, y, color=cmap(norm(pixcov)), lw=1.5, markersize=2, alpha=0.5)
@@ -100,12 +112,12 @@ for pixcov, group in df.iteritems():
 for i in range(nrows):
     divider = make_axes_locatable(axs[i])
     cax = divider.append_axes('right', size='2%', pad=0.05)
-    cbar = fig.colorbar(sm, cax=cax, format=mpl.ticker.ScalarFormatter(),
+    fig.colorbar(sm, cax=cax, format=mpl.ticker.ScalarFormatter(),
                         shrink=1.0, fraction=0.1, pad=0)
     axs[i].set_xlabel('Wavelength (nm)')
 
 axs[0].set_ylabel('BOA Reflectance $(-)$')
 axs[1].set_ylabel('TOA Reflectance $(-)$')
-axs[2].set_ylabel('TOA Radiance\n $(W\ m^{-2}\ sr^{-1}\ \mu m^{-1})$')
+axs[2].set_ylabel('TOA Radiance\n $(W\\ m^{-2}\\ sr^{-1}\\ \\mu m^{-1})$')
 plt.tight_layout()
-plt.savefig(opj(dir,'fig',figfile),dpi=200)
+plt.savefig(opj(idir, 'fig', figfile), dpi=200)

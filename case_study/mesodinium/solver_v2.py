@@ -1,10 +1,15 @@
+"""
+Bio-optical inversion of remote sensing reflectance (version 2).
+
+Same model as ``solver.py`` (Gordon et al. 1988 + chlorophyll fluorescence
++ specific IOPs of the dominant algae species + background absorption and
+backscattering), but the cost function is the difference between measured
+and modeled below-water rrs, weighted by the measurement uncertainty
+``sig_meas``.
+"""
 import numpy as np
 import xarray as xr
 import lmfit as lm
-import pandas as pd
-from pandarallel import pandarallel
-
-from Py6S import *
 
 import RTxploitation as RT
 
@@ -15,6 +20,14 @@ water = RTp.water()
 
 
 class Rrs_inversion:
+    """
+    Inversion of Rrs spectra into chl-a and background IOPs.
+
+    The unknowns are ``chl`` (mg m-3), ``a_bg_ref`` and ``bb_bg_ref``
+    (background absorption and backscattering at 440 nm, m-1),
+    ``S_bg`` (spectral slope of absorption, nm-1) and ``eta_bg`` (spectral
+    slope of backscattering).
+    """
     def __init__(self, a_star: xr.DataArray, bb_star: xr.DataArray, sza, sat='s2a', band_idx=None, wl_=None):
         '''
         Set parameter values for satellite bands characteristics (band spectral responses)
@@ -52,9 +65,14 @@ class Rrs_inversion:
 
     def Rrs_to_iops(self, Rrs, wl_nir_threshold=715):
         '''
+        Simple semi-analytical retrieval of total absorption and
+        backscattering: bbp is estimated from the bands beyond
+        ``wl_nir_threshold`` (where absorption is dominated by water) and
+        assumed spectrally flat.
 
-        :param Rrs: Remote sensing reflectance above water
-        :return:
+        :param Rrs: remote sensing reflectance above water (sr-1)
+        :param wl_nir_threshold: lower wavelength (nm) of the bands used for bbp
+        :return: total absorption and backscattering coefficients (m-1)
         '''
         rrs = water.Rrs2rrs(Rrs)
 
@@ -72,21 +90,23 @@ class Rrs_inversion:
 
     def abg(self, a_bg_ref, S_bg, wl_ref=440):
         '''
+        Exponential absorption spectrum of the background component.
 
-        :param a_bg_ref:
-        :param S_bg:
-        :param wl_ref:
-        :return:
+        :param a_bg_ref: absorption at ``wl_ref`` (m-1)
+        :param S_bg: spectral slope (nm-1)
+        :param wl_ref: reference wavelength (nm)
+        :return: absorption at ``self.wl`` (m-1)
         '''
         return a_bg_ref * np.exp(-S_bg * (self.wl - wl_ref))
 
     def bbbg(self, bb_bg_ref, eta_bg, wl_ref=440):
         '''
+        Power-law backscattering spectrum of the background component.
 
-        :param bb_bg_ref:
-        :param eta_bg:
-        :param wl_ref:
-        :return:
+        :param bb_bg_ref: backscattering at ``wl_ref`` (m-1)
+        :param eta_bg: spectral slope (-)
+        :param wl_ref: reference wavelength (nm)
+        :return: backscattering at ``self.wl`` (m-1)
         '''
         return bb_bg_ref * (wl_ref / self.wl) ** eta_bg
 
@@ -112,6 +132,13 @@ class Rrs_inversion:
         return np.append(func, constraint)
 
     def forward_model(self, pars, level='below'):
+        '''
+        Forward model: Gordon et al. (1988) reflectance plus chlorophyll
+        fluorescence.
+
+        :param pars: (chl, a_bg_ref, bb_bg_ref, S_bg, eta_bg)
+        :param level: 'below' to return below-water rrs, otherwise above-water Rrs
+        '''
         chl, a_bg_ref, bb_bg_ref, S_bg, eta_bg = pars
 
         # print(chl, a_bg_ref, bb_bg_ref, S_bg, eta_bg)
@@ -130,7 +157,15 @@ class Rrs_inversion:
         else:
             return water.rrs2Rrs(rrs_tot)
 
-    def call_solver(self, rrs, numpy=True, xinit=[0.5,0.1,0.1,0.015,0.5]):
+    def call_solver(self, rrs, numpy=True, xinit=(0.5, 0.1, 0.1, 0.015, 0.5)):
+        '''
+        Run the least-squares inversion for one spectrum.
+
+        :param rrs: spectrum (array, or pandas Series if ``numpy`` is False)
+        :param numpy: set False if ``rrs`` is a pandas object
+        :param xinit: initial values of (chl, a_bg_ref, bb_bg_ref, S_bg, eta_bg)
+        :return: lmfit MinimizerResult
+        '''
         if not numpy:
             rrs = rrs.values
         pars = lm.Parameters()
@@ -148,7 +183,16 @@ class Rrs_inversion:
         # print(lm.fit_report(out1))
         return out1
 
-    def multiprocess(self, df):
-        pandarallel.initialize(nb_workers=10)
-        res = df.parallel_apply(self.call_solver, axis=1)
+    def multiprocess(self, df, nb_workers=10):
+        '''
+        Apply the solver to each row (spectrum) of a pandas DataFrame in
+        parallel (requires the optional package ``pandarallel``).
+
+        :param df: DataFrame of rrs spectra (one spectrum per row)
+        :param nb_workers: number of processes
+        :return: Series of lmfit results
+        '''
+        from pandarallel import pandarallel
+        pandarallel.initialize(nb_workers=nb_workers)
+        res = df.parallel_apply(self.call_solver, axis=1, numpy=False)
         return res

@@ -125,3 +125,10 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+
+# Sphinx documentation (docs/)
+docs/build/
+# copies of the notebooks made by docs/source/conf.py
+docs/source/tutorials/plastics/
+# LUT of the plastics case study (~160 MB each, not distributed)
+case_study/plastics/data/*.nc

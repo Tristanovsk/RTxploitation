@@ -182,7 +182,7 @@ for sedni in sedni_list:
         fig, axs = plt.subplots(1, 2, figsize=(15, 6))
         Ixr.isel(sza=szaidx, azi=aziidx, vza=vzaidx).plot.line(x='sed', marker='o', row='z', hue='sedjs', col='wl')
         plt.suptitle('SZA = ' + sza_ + ' deg, VZA = ' + str(vza[vzaidx]) + ' deg, AZI = ' + str(azi[aziidx]),
-                     fontdict=lp.font)
+                     **lp.font)
         plt.tight_layout(rect=[0.0, 0.0, 0.99, 0.9])
         plt.savefig(opj(odir,'onedir',figfile + '_sza'+sza_+'_onedir.png'), dpi=300, bbox_inches='tight')
         plt.close()
@@ -219,7 +219,7 @@ for sedni in sedni_list:
                     cax = lp.add_polplot(axs[ijs, ised], r, theta, I, title='I (' + sed + 'mg/L - JS = ' + js + ')',
                                          nlayers=50, scale=False, cmap=cmap)#, vmin=0, vmax=vmax)
             lp.label_polplot(axs[0,0])
-            plt.suptitle('$R_{rs}\ (sr^{-1})$ at '+wl+' micron, SZA = '+ str(sza[szaidx]) + ' deg', size=22)
+            plt.suptitle(r'$R_{rs}\ (sr^{-1})$ at '+wl+' micron, SZA = '+ str(sza[szaidx]) + ' deg', size=22)
             plt.tight_layout(rect=[0.0, 0.0, 0.99, 0.95])
             fig.colorbar(cax, ax=axs.ravel().tolist())
 

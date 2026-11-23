@@ -1,3 +1,9 @@
+"""
+Reshape series of OSOAA netCDF files (aerosol optical thickness x
+wavelength) into one netCDF LUT file per aerosol model.
+
+This is a script: it is executed on import (paths are hard-coded).
+"""
 import os, sys
 import glob
 import numpy as np

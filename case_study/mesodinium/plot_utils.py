@@ -1,20 +1,20 @@
+"""
+Plotting helpers for the Mesodinium case study.
+"""
 import os
 import numpy as np
 
 # ----------------------------
 # set plotting styles
-import cmocean as cm
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 plt.ioff()
 mpl.rcParams.update({'font.size': 18})
 
 from RTxploitation import parameterization as RTp
-
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.collections import LineCollection
 
 def multiline(xs, ys, c, ax=None, **kwargs):
     """Plot lines with different colorings
@@ -54,18 +54,37 @@ def multiline(xs, ys, c, ax=None, **kwargs):
     return lc
 
 class Rrs:
+    '''Figures of forward-modeled Rrs and IOPs.'''
     def __init__(self):
         pass
 
-    def plot_Rrs_a_bb(self,wl, a_star, bbp_star, aw, bbw,a_bg,bbp_bg, coef=1,
+    def plot_Rrs_a_bb(self, wl, a_star, bbp_star, aw, bbw, a_bg, bbp_bg, coef=1,
                       param_star=np.logspace(np.log10(0.1), np.log10(200), 50),
-                      cmin=0, cmax=200, title='Chl --> Rrs (model direct)', figdir='./'):
+                      cmin=0, cmax=200, title='Chl --> Rrs (model direct)', figdir='./',
+                      Ed_ref=775.):
+        '''
+        Plot Rrs (Gordon et al. 1988 + fluorescence), total absorption and
+        backscattering for a range of chl-a concentrations, for pure algae
+        (top) and algae + background (bottom).
+
+        :param wl: wavelengths (nm)
+        :param a_star: chl-specific absorption of the algae (m2 mg-1)
+        :param bbp_star: chl-specific backscattering of the algae (m2 mg-1)
+        :param aw: pure water absorption (m-1)
+        :param bbw: pure water backscattering (m-1)
+        :param a_bg: background absorption (m-1)
+        :param bbp_bg: background backscattering (m-1)
+        :param coef: scaling factor applied to ``bbp_star``
+        :param param_star: chl-a concentrations (mg m-3)
+        :param cmin: min of the color scale
+        :param cmax: max of the color scale
+        :param title: figure title
+        :param figdir: output directory
+        :param Ed_ref: downwelling irradiance at 865 nm for fluorescence (W m-2 um-1)
+        '''
         water = RTp.water()
 
-        cmap = plt.cm.get_cmap("Spectral").reversed()
-
-        decimal = 3
-        # (dff[param].min() * 0.8).round(decimal), (dff[param].max() * 1.2).round(decimal)
+        cmap = mpl.colormaps['Spectral'].reversed()
 
         norm = mpl.colors.Normalize(vmin=cmin, vmax=cmax)
         sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
@@ -79,7 +98,7 @@ class Rrs:
 
             for chl in param_star:
 
-                Rrs_fluo = water.fluo_gower2004(chl, wl, 30)
+                Rrs_fluo = water.fluo_gower2004(chl, wl, Ed_ref=Ed_ref)
                 if i == 0:
                     Rrs_g88 = water.gordon88(aw + a_star * chl,
                                              bbw + coef * bbp_star * chl)
@@ -112,7 +131,7 @@ class Rrs:
                 axs[i].set_title(subtitle)
             divider = make_axes_locatable(axs[i])
             cax = divider.append_axes('right', size='5%', pad=0.05)
-            cbar = fig.colorbar(sm, cax=cax, format=mpl.ticker.ScalarFormatter(),
+            fig.colorbar(sm, cax=cax, format=mpl.ticker.ScalarFormatter(),
                                 shrink=1.0, fraction=0.1, pad=0)
 
             axs[i].set_ylabel(r'$R_{rs}\  (sr^{-1})$')

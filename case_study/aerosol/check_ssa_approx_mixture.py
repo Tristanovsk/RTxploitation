@@ -1,5 +1,22 @@
-import os, sys
-import glob
+"""
+Check of the fine/coarse aerosol mixture approximation.
+
+The TOA (or BOA) radiance of an external mixture of a fine and a coarse
+lognormal aerosol mode is approximated as a linear combination of the
+radiances computed for the pure modes:
+
+    I_mix ~ gamma_f * I_fine + gamma_c * I_coarse,
+    gamma_i = eta_i * Cext_i / Cext_mix
+
+with eta_i the number fraction of mode i derived from the fine-mode volume
+fraction CVfine. This script loads OSOAA atmosphere-only LUTs computed for
+several CVfine and wavelengths, plots radiance/aot spectra and the aerosol
+scattering matrix, and maps the relative error of the approximation.
+
+Input: OSOAA netCDF LUTs in ``idir`` (``osoaa_atmo_aot0.2_CVfine*.nc``)
+Output: figures in ``odir`` (``spectra/``, ``scat_mat/``, ``compar_aerosol_mode_mixture*``)
+"""
+import os
 import numpy as np
 import netCDF4 as nc
 import xarray as xr
@@ -21,17 +38,17 @@ plt.rcParams["font.serif"] = ["Times New Roman"] + plt.rcParams["font.serif"]
 plt.rcParams.update({'font.size': 18, 'axes.labelsize': 22})
 
 # ----------------------------
-# sys.path.extend(['/home/harmel/Dropbox/work/VRTC/OSOAA_profile/exe/lut_package'])
 from RTxploitation import lutplot
 
 opj = os.path.join
 
 # set absolute path
 idir = '/sat_data/vrtc/lut/atmo'
-odir = '/DATA/git/vrtc/RTxploitation/study_cases/aerosol/fig'
+odir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fig')
 
 xlut = []
-for wl in [0.400,0.5,0.6,0.7,0.8,1,1.6,2.2]:
+wls = [0.400, 0.5, 0.6, 0.7, 0.8, 1, 1.6, 2.2]
+for wl in wls:
 
     pattern = "fine_rm0.10_sig0.40_nr1.48_ni-0.0035_coarse_rm0.81_sig0.60_nr1.48_ni-0.0035_HR8.0_HA2.0_ws2_wl{:0.3f}".format(wl)
 
@@ -51,10 +68,8 @@ for wl in [0.400,0.5,0.6,0.7,0.8,1,1.6,2.2]:
         file = "osoaa_atmo_aot0.2_CVfine{:.2f}_".format(CVf) + pattern + '.nc'
         pfile = opj(idir, file)
 
-        lut = nc.Dataset(pfile)
-
-        wl = float(lut.getncattr('OSOAA.Wa'))
-        sza = lut.variables['sza'][:]
+        with nc.Dataset(pfile) as ds:
+            sza = ds.variables['sza'][:]
         aerosol = xr.open_dataset(pfile, group='optical_properties/aerosol/'
                                   ).set_coords('wl').expand_dims(['wl', 'CVfine']).assign_coords({'CVfine': [CVf]})
 
@@ -104,8 +119,8 @@ for cvf in lut_view.CVfine.values:
     axs[1].plot(lut_.wl,lut_.I,color=cmap(norm(cvf)),label='CVfine {:.1f}'.format(cvf))
 axs[0].set_xlim([0.4,0.9])
 for i in range(2):
-    axs[i].set_xlabel('$Wavelength\ (\mu m)$')
-    axs[i].set_ylabel('$Normalized\ radiance\ (-)$')
+    axs[i].set_xlabel(r'$Wavelength\ (\mu m)$')
+    axs[i].set_ylabel(r'$Normalized\ radiance\ (-)$')
 
 axs[0].legend( loc='upper right',fontsize=11)
 figfile = os.path.join(odir, 'spectra','radiance')
@@ -128,8 +143,8 @@ for cvf in lut.CVfine.values:
     axs[1].plot(lut_.wl,scale*lut_.aot,'o-',color=cmap(norm(cvf)),label='CVfine {:.1f}'.format(cvf))
 axs[1].semilogy()
 for i in range(2):
-    axs[i].set_xlabel('$Wavelength\ (\mu m)$')
-    axs[i].set_ylabel('$aot(\lambda )$')
+    axs[i].set_xlabel(r'$Wavelength\ (\mu m)$')
+    axs[i].set_ylabel(r'$aot(\lambda )$')
     axs[i].minorticks_on()
 axs[1].legend( loc='lower left',fontsize=12)
 figfile = os.path.join(odir, 'spectra','aerosol_optical_thickness_grs_v1')
@@ -154,19 +169,22 @@ axs[0].set_title('$P_{11}$')
 axs[1].set_title('$P_{12}$')
 axs[2].set_title('$P_{33}$')
 for i in range(3):
-    axs[i].set_xlabel('$Scattering\ angle\ (deg)$')
+    axs[i].set_xlabel(r'$Scattering\ angle\ (deg)$')
 axs[0].semilogy()
 
 axs[0].legend( loc='upper right',fontsize=11)
 figfile = os.path.join(odir, 'scat_mat','aerosol_scattering_matrix')
 plt.tight_layout()
-plt.savefig(figfile +  '_wl' + wl + '.png', dpi=300)
+plt.savefig(figfile + '.png', dpi=300)
 
 
 #--------------------------
 # plot fine/coarse mixture approximation
 #--------------------------
-Cext = lut.Cext_ref.sel(CVfine=[1,0]).squeeze().values #np.array([0.017, 10.5])
+# the mixture check is done at one wavelength
+wl_plot = wls[0]
+lut_wl = lut.sel(wl=wl_plot, method='nearest')
+Cext = lut_wl.Cext_ref.sel(CVfine=[1, 0]).squeeze().values  # e.g., np.array([0.017, 10.5])
 
 # Cext=np.array([0.05,9.812])
 ssa = np.array([0.98, 0.877])
@@ -196,7 +214,7 @@ Cext_mix = eta_f * Cext[0] + (1 - eta_f) * Cext[1]
 gamma = eta_f * Cext[0] / Cext_mix
 
 
-lut.Cext_ref.plot()
+lut_wl.Cext_ref.plot()
 plt.semilogy()
 plt.plot(CVf,Cext_mix)
 plt.figure()
@@ -229,9 +247,9 @@ for szaidx in [1, 3, 6]:
         Cext_mix = eta_f * Cext[0] + (1 - eta_f) * Cext[1]
         gamma = eta * Cext / Cext_mix
 
-        Stokes_c = lut.sel(CVfine=0).isel(sza=szaidx).where(lut.vza < vzamax, drop=True)
-        Stokes_f = lut.sel(CVfine=1).isel(sza=szaidx).where(lut.vza < vzamax, drop=True)
-        Stokes_ = lut.sel(CVfine=CVf).isel(sza=szaidx).where(lut.vza < vzamax, drop=True)
+        Stokes_c = lut_wl.sel(CVfine=0).isel(sza=szaidx).where(lut_wl.vza < vzamax, drop=True)
+        Stokes_f = lut_wl.sel(CVfine=1).isel(sza=szaidx).where(lut_wl.vza < vzamax, drop=True)
+        Stokes_ = lut_wl.sel(CVfine=CVf).isel(sza=szaidx).where(lut_wl.vza < vzamax, drop=True)
 
         # ----------------------------
         # construct raster dimensions
@@ -260,7 +278,7 @@ for szaidx in [1, 3, 6]:
 
         figfile = os.path.join(odir, 'compar_aerosol_mode_mixture')
         plt.tight_layout()
-        plt.savefig(figfile + '_sza' + str(sza[szaidx]) + '_CVfine{:.2f}'.format(CVf) + '_wl' + wl + '.png', dpi=300)
+        plt.savefig(figfile + '_sza' + str(sza[szaidx]) + '_CVfine{:.2f}'.format(CVf) + '_wl{:.3f}'.format(wl_plot) + '.png', dpi=300)
         plt.close()
 
 plt.show()

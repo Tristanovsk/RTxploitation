@@ -111,7 +111,7 @@ for i, profile in enumerate(profiles):
     cmap = cm.tools.crop_by_percent(cm.cm.delta, 10, which='min', N=None)
     lp.add_polplot(axs[i], r, theta, ratio, title='Rrs(440)/Rrs(550); ' + profile, cmap=cmap)
 
-plt.suptitle(os.path.basename(get_pattern(wlc,i)) + ' at SZA = ' + str(sza[szaidx]) + ' deg', fontdict=lp.font)
+plt.suptitle(os.path.basename(get_pattern(wlc,i)) + ' at SZA = ' + str(sza[szaidx]) + ' deg', **lp.font)
 plt.tight_layout(rect=[0.0, 0.0, 0.99, 0.95])
 plt.savefig(figfile + '.png', dpi=300, bbox_inches='tight')
 plt.close()

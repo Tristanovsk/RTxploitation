@@ -1,117 +1,98 @@
-import os, sys
+"""
+Plot the results of the pixel-based satellite inversions.
+
+For each result file of ``sat_app_from_ascii.py`` (``*res_v2*.csv``) and three
+ranges of retrieved chl-a, the figure shows (left) the satellite Rrs spectra,
+(middle) the hyperspectral Rrs reconstructed from the retrieved parameters,
+and (right) the scatter plot of modeled vs satellite Rrs in each band.
+
+Input: ``<dirdata>/satellite/*res_v2*.csv``
+Output: ``<figdir>/Rrs_retieval_compar_<file>_v2.png``
+"""
+import os
 import glob
 import numpy as np
-import netCDF4 as nc
-import xarray as xr
 import pandas as pd
-from scipy import odr as odr
 
 # ----------------------------
 # set plotting styles
-import cmocean as cm
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from pandarallel import pandarallel
 
-plt.ioff()
 plt.rcParams.update({'font.size': 18})
 
-from RTxploitation import lutplot
-from RTxploitation import utils as u
-from RTxploitation import parameterization as RTp
-import RTxploitation.auxdata as ad
-import study_cases.mesodinium.plot_utils as uplot
-from study_cases.mesodinium.solver_v2 import Rrs_inversion
-import study_cases.mesodinium as meso
-import invRrs
-plot = False
+import case_study.mesodinium as meso
+from case_study.mesodinium.solver_v2 import Rrs_inversion
 
 opj = os.path.join
 root = os.path.abspath(os.path.dirname(meso.__file__))
 dataroot = opj(root, 'data')
 
+project = 'theia'  # 'gernez' or 'theia'
+if project == 'gernez':
+    idir = '/DATA/projet/gernez/mesodinium'
+    figdir = opj(idir, 'fig')
+    dirdata = opj(idir, 'data')
+else:
+    idir = '/DATA/projet/ces/theia'
+    figdir = opj(idir, 'fig')
+    dirdata = opj(idir, 'fig')
 
-idir = '/DATA/projet/gernez/mesodinium'
-figdir = opj(idir, 'fig')
-dirdata = opj(idir,'data')
-
-idir = '/DATA/projet/ces/theia'
-figdir = opj(idir, 'fig')
-dirdata = opj(idir,'fig')
-
-sensor='s2'
-
-if sensor =='s2':
+sensor = 's2'
+if sensor == 's2':
     satfiles = glob.glob(opj(dirdata, 'satellite/*res_v2*.csv'))
-    sat_props=('s2a',list(range(9)))
-    wl_max=900
+    sat_props = ('s2a', list(range(9)))
+    wl_max = 900
 else:
     satfiles = glob.glob(opj(dirdata, 'satellite/S3*res_v2*.csv'))
-    sat_props=('s3a',list([0,1,2,3,4,5,6,7,8,9,10,11,15,16,17,20])) #list([0,1,2,3,4,5,6,7,8,9,10,11,14]))
-    wl_max=1020
+    sat_props = ('s3a', [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 20])
+    wl_max = 1020
 
-if False:
-    iop_file = 'gernez_IOPs_Mrubrum.txt'
-    iops = pd.read_csv(opj(dataroot, iop_file), sep=' ', index_col=0)
-    suffix='mesodinium'
+# iop_file = 'gernez_IOPs_Mrubrum.txt'
+iop_file = 'Ciotti_et_al_2002_aphy_star_Chl_18_34_41_Sf01.txt'
+iops = pd.read_csv(opj(dataroot, iop_file), sep=' ', index_col=0)
+if 'gernez' in iop_file:
+    suffix = 'mesodinium'
 else:
-    iop_file =  'Ciotti_et_al_2002_aphy_star_Chl_18_34_41_Sf01.txt'
-    iops = pd.read_csv(opj(dataroot,iop_file ), sep=' ', index_col=0)
-    suffix='Ciotti2002'+iop_file.split('_')[-1].replace('.txt','')
-    iops.columns = ['aphy_g','aphy_star']
-# load iop_star values
-#iops = pd.read_csv(opj(dataroot, 'gernez_IOPs_Mrubrum.txt'), sep=' ', index_col=0)
-# add wavelengths to cover full range up to 1000nm
+    suffix = 'Ciotti2002' + iop_file.split('_')[-1].replace('.txt', '')
+    iops.columns = ['aphy_g', 'aphy_star']
+
+# add wavelengths to cover full range up to 1100 nm
 additional_wl = np.arange(iops.index.values[-1] + 1, 1101, 1)
-iops = iops.append(pd.DataFrame([iops.iloc[-1]] * len(additional_wl), index=additional_wl))
+iops = pd.concat([iops, pd.DataFrame([iops.iloc[-1]] * len(additional_wl), index=additional_wl)])
 iops.index.name = 'wl'
 
 # Strong assumption bbp spectrally fixed
 iops['bbp_star'] = 4e-4
 
-
 a_star, bb_star = iops.aphy_star.to_xarray(), iops.bbp_star.to_xarray()
-sza=30
+sza = 30
 
 solver = Rrs_inversion(a_star, bb_star, sza, sat=sat_props[0], band_idx=sat_props[1])
 
-# load satellite pixel values
 
-cmap = plt.cm.get_cmap("Spectral").reversed()
+cmap = mpl.colormaps['Spectral'].reversed()
 
-decimal = 3
-cmin, cmax = 0, 200  # (dff[param].min() * 0.8).round(decimal), (dff[param].max() * 1.2).round(decimal)
-
-norm = mpl.colors.Normalize(vmin=cmin, vmax=cmax)
-sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
-sm.set_array([])
-
-wl_width = []
 wl_sat = solver.wl
 wl = iops.index.values
-
-water = RTp.water()
-#iops.bbp_star = 8e-4
 
 # -----------------
 # plotting results
 # -----------------
 
 for satfile in satfiles:
-    title = '_'.join(satfile.split(r'_')[-6:]).replace('.csv', '')
     title = os.path.basename(satfile).replace('.csv', '')
 
     print(title)
     df = pd.read_csv(satfile)
     sza = df.SZA.mean()
 
-    solver = Rrs_inversion(a_star, bb_star,sza,sat=sat_props[0], band_idx=sat_props[1] )
-    solver_hyp = Rrs_inversion( a_star, bb_star,sza,wl_=wl)
+    solver = Rrs_inversion(a_star, bb_star, sza, sat=sat_props[0], band_idx=sat_props[1])
+    solver_hyp = Rrs_inversion(a_star, bb_star, sza, wl_=wl)
 
     fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(21, 21))  # ncols=3, figsize=(30, 12))
     for irow, chl in  enumerate(([0,20],[20,40],[40,1000])):
-        print(irow)
         norm = mpl.colors.Normalize(vmin=chl[0], vmax=min(100,chl[1]))
         sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
         sm.set_array([])
@@ -131,16 +112,15 @@ for satfile in satfiles:
         xy_max = Rrs_.max() * 1.2 #(max(max(Rrs_sat), max(Rrs_est)) * 1.2)
 
         for idx, sat in df_.iterrows():
-            #Rrs_sat = df_.filter(regex='reflectance').astype('float')
             if sensor == 's2':
                 Rrs_sat = sat.filter(regex='Rrs_B[0-9]').astype('float')
                 # get appropriate bands:
-                Rrs_sat = Rrs_sat[sat_props[1]]
+                Rrs_sat = Rrs_sat.iloc[sat_props[1]]
             else:
                 Rrs_sat = sat.filter(regex='reflectance').astype('float')/np.pi
 
 
-            x = sat.iloc[-5:]
+            x = sat.iloc[-5:].values.astype(float)
 
             # satellite data
             axs[irow,0].plot(wl_sat, Rrs_sat, ':o',color=cmap(norm(x[0])), label='Measured', lw=2.5, alpha=0.75)
@@ -176,7 +156,7 @@ for satfile in satfiles:
         for i in [0, 1]:
             divider = make_axes_locatable(axs[irow,i])
             cax = divider.append_axes('right', size='5%', pad=0.05)
-            cbar = fig.colorbar(sm, cax=cax, format=mpl.ticker.ScalarFormatter(),
+            fig.colorbar(sm, cax=cax, format=mpl.ticker.ScalarFormatter(),
                                 shrink=1.0, fraction=0.1, pad=0)
 
     plt.suptitle(title)
@@ -187,6 +167,4 @@ for satfile in satfiles:
     data = df.iloc[:, -5:]
     data.hist()
     plt.tight_layout(rect=[0.05, 0.05, 0.95, 0.86])
-    #plt.show()
-
-
+    plt.close('all')

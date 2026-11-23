@@ -1,11 +1,33 @@
+"""
+Satellite relative spectral responses and spectral band integration.
+"""
 import os
 import numpy as np
 import xarray as xr
 import matplotlib.pyplot as plt
 import Py6S as sixs
 
+# numpy >= 2.0 renamed trapz into trapezoid
+_trapezoid = getattr(np, 'trapezoid', None) or np.trapz
+
 
 class spectral_responses:
+    '''
+    Relative spectral responses (RSR) of satellite sensors, as provided by
+    the Py6S package (``Py6S.PredefinedWavelengths``), and spectral
+    convolution of hyperspectral data onto the sensor bands.
+
+    Available sensors: ``'oli'``, ``'s2a'``, ``'s2b'``, ``'s3a'``,
+    ``'s3b'``, ``'meris'``, ``'modisa'``, ``'modist'``.
+
+    :param sat: satellite sensor ID: 'oli', 's2a',..., 's3b, 'modisa'...;
+        if given, the RSR are loaded at initialization (see :meth:`get_rsr`)
+    :param band_idx: if None all bands considered, list of band index otherwise
+
+    :ivar satellites: list of the available sensor IDs
+    :ivar rsrs: array of :class:`xarray.DataArray` RSR (one per band) with
+        wavelength coordinate ``wl`` in nm
+    '''
 
     # class rsr:
     #     def __init__(self):
@@ -13,11 +35,6 @@ class spectral_responses:
     #         self.rsr = []
 
     def __init__(self, sat=None,band_idx=None):
-        '''
-
-        :param sat: satellite sensor ID: 'oli', 's2a',..., 's3b, 'modisa'...
-        :param band_idx: if None all bands considered, list of band index otherwise
-        '''
         # get info from Py6S package
         self.lut = sixs.PredefinedWavelengths
         # wavelength increment used to generate sensor spectral responses through 6SV and Py6S
@@ -44,9 +61,11 @@ class spectral_responses:
         '''
         Get LUT relative spectral response of the bands of `sat`.
         Note that wavelengths are converted into nm.
+        The result is also stored in ``self.rsrs``.
+
         :param sat: satellite sensor ID: 'oli', 's2a',..., 's3b, 'modisa'...
         :param band_idx: if None all bands considered, list of band index otherwise
-        :return:
+        :return: array of :class:`xarray.DataArray` RSR, one per band
         '''
 
         info = self.get[sat]
@@ -58,15 +77,21 @@ class spectral_responses:
             wl = np.arange(start, end + self.debug_arange, self.inc) * 1e3
             rsr = xr.DataArray(np.array(rsr_), coords=[('wl', wl)])
             rsrs.append(rsr)
-        self.rsrs = np.array(rsrs)
+        # bands have different lengths: store as 1D object array
+        self.rsrs = np.empty(len(rsrs), dtype=object)
+        for i, rsr in enumerate(rsrs):
+            self.rsrs[i] = rsr
         return self.rsrs
 
     def convolution(self, wl, param):
         '''
-        Integrate/convolve param values for each spectral band based on the `sat` lut values.
+        Integrate/convolve param values for each spectral band based on the `sat` lut values:
+        ``int(param * RSR dwl) / int(RSR dwl)``.
+        :meth:`get_rsr` must have been called first.
+
         :param wl: wavelengths of param, np.array in nm
         :param param: param, np.array
-        :return:
+        :return: np.array of band-averaged values, one per band
         '''
 
         param_rsr = []
@@ -76,16 +101,27 @@ class spectral_responses:
             rsr_ = rsr.interp(wl=wl_)
 
             param_rsr.append(
-                np.trapz(param_ * rsr_.data, rsr_.wl) /
+                _trapezoid(param_ * rsr_.data, rsr_.wl) /
                 rsr_.integrate('wl'))
 
         return np.array(param_rsr)
 
     def xr_convolution(self, xr_param):
+        '''
+        Same as :meth:`convolution` for a :class:`xarray.DataArray`.
+
+        :param xr_param: 1D DataArray with wavelength coordinate ``wl`` in nm
+        :return: np.array of band-averaged values, one per band
+        '''
         wl,param = xr_param.wl.values,xr_param.data
         return self.convolution(wl,param)
 
     def plot_all_sat(self):
+        '''
+        Plot the relative spectral responses of all the available sensors.
+
+        :return: matplotlib figure and axes
+        '''
         sats = self.satellites
         fig, axs = plt.subplots(nrows=len(sats), figsize=[15, 25])
         axs = axs.ravel()
@@ -100,6 +136,9 @@ class spectral_responses:
         return fig, axs
 
     def get_landsat_oli(self):
+        '''
+        :return: Py6S spectral responses of Landsat-8 OLI (bands 1 to 9)
+        '''
         return np.array([self.lut.LANDSAT_OLI_B1,
                 self.lut.LANDSAT_OLI_B2,
                 self.lut.LANDSAT_OLI_B3,
@@ -111,6 +150,9 @@ class spectral_responses:
                 self.lut.LANDSAT_OLI_B9],dtype=object)
 
     def get_s2a_msi(self):
+        '''
+        :return: Py6S spectral responses of Sentinel-2A MSI (13 bands)
+        '''
         return np.array([self.lut.S2A_MSI_01,
                 self.lut.S2A_MSI_02,
                 self.lut.S2A_MSI_03,
@@ -126,6 +168,9 @@ class spectral_responses:
                 self.lut.S2A_MSI_12],dtype=object)
 
     def get_s2b_msi(self):
+        '''
+        :return: Py6S spectral responses of Sentinel-2B MSI (13 bands)
+        '''
         return np.array([self.lut.S2B_MSI_01,
                 self.lut.S2B_MSI_02,
                 self.lut.S2B_MSI_03,
@@ -141,6 +186,9 @@ class spectral_responses:
                 self.lut.S2B_MSI_12],dtype=object)
 
     def get_s3a_olci(self):
+        '''
+        :return: Py6S spectral responses of Sentinel-3A OLCI (21 bands)
+        '''
         return np.array([self.lut.S3A_OLCI_01,
                 self.lut.S3A_OLCI_02,
                 self.lut.S3A_OLCI_03,
@@ -164,6 +212,9 @@ class spectral_responses:
                 self.lut.S3A_OLCI_21],dtype=object)
 
     def get_s3b_olci(self):
+        '''
+        :return: Py6S spectral responses of Sentinel-3B OLCI (21 bands)
+        '''
         return np.array([self.lut.S3B_OLCI_01,
                 self.lut.S3B_OLCI_02,
                 self.lut.S3B_OLCI_03,
@@ -187,6 +238,9 @@ class spectral_responses:
                 self.lut.S3B_OLCI_21],dtype=object)
 
     def get_meris(self):
+        '''
+        :return: Py6S spectral responses of ENVISAT MERIS (15 bands)
+        '''
         return np.array([self.lut.MERIS_B1, self.lut.MERIS_B2, self.lut.MERIS_B3,
                 self.lut.MERIS_B4, self.lut.MERIS_B5, self.lut.MERIS_B6,
                 self.lut.MERIS_B7, self.lut.MERIS_B9, self.lut.MERIS_B10,
@@ -194,6 +248,9 @@ class spectral_responses:
                 self.lut.MERIS_B13, self.lut.MERIS_B14, self.lut.MERIS_B15],dtype=object)
 
     def get_modisa(self):
+        '''
+        :return: Py6S spectral responses of MODIS Aqua (bands 1-7 and 11-15)
+        '''
         return np.array([self.lut.ACCURATE_MODIS_AQUA_1,
                 self.lut.ACCURATE_MODIS_AQUA_2,
                 self.lut.ACCURATE_MODIS_AQUA_3,
@@ -208,6 +265,9 @@ class spectral_responses:
                 self.lut.ACCURATE_MODIS_AQUA_15],dtype=object)
 
     def get_modist(self):
+        '''
+        :return: Py6S spectral responses of MODIS Terra (bands 1-7 and 11-15)
+        '''
         return np.array([self.lut.ACCURATE_MODIS_TERRA_1,
                 self.lut.ACCURATE_MODIS_TERRA_2,
                 self.lut.ACCURATE_MODIS_TERRA_3,
