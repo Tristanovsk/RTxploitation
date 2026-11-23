@@ -27,35 +27,44 @@ from RTxploitation import lutplot
 opj = os.path.join
 
 # set absolute path
-idir = '/sat_data/vrtc/lut/atmo'
-odir = '/DATA/git/vrtc/RTxploitation/study_cases/aerosol/fig'
+idir = '/data/vrtc/lut/atmo_full'
+odir = '/DATA/git/vrtc/RTxploitation/case_study/aerosol/fig'
 
-directions = ['down', 'up']
-direction = directions[1]
+directions = ['up', 'down']
+direction = directions[0]
 
-zidx = [-1]
-
-aots = ['0.001','0.01', '0.1', '0.2','0.35', '0.5','0.7', '1.0','1.5']
+# set -2 for BOA (or -1 for TOA)
+zidx = [-2]
+wls = [0.35, 0.4, 0.5, 0.6, 0.7, 0.8, 1, 1.6, 2.2, 2.5]
+aots = ['0.0000', '0.001', '0.01', '0.1', '0.2', '0.35', '0.5', '0.7', '1.0', '1.5']
 # aots = ['0.5']
+winds = ['0.5', '2', '4', '8', '12', '16']
+rh = '_rh70'
 
-rh = '_rh99'
-rhs = ['_rh0', '_rh70', '_rh90', '_rh99']
-models = ['COAV', 'COCL', 'COPO', 'MAPO', 'DESE', 'URBA']
-models = ['COAV', 'DESE', 'MACL', 'MAPO', 'COPO', 'URBA', 'ARCT', 'ANTA']
+models = ['COAV', 'DESE', 'MACL', 'URBA']
+file_type = 'osoaa_atmo_full'
+# set aerosol parameters to be exported
+param_aerosol = ['wl_ref','Cext_ref', 'ssa_ref',  'aot',
+                 'Cext', 'ssa',  'asym_factor',    'bbp_ratio',
+                 'bup_ratio', 'vol_mean_particle', 'nr']
 
 # ------------------------
 # Load LUT
 # ------------------------
-xStokes_ = []
-for rh in rhs:
+xStokes = []
+for wind in winds:
+    print('wind ' + wind)
+    xStokes_ = []
     for model in models:
+        print(model)
         aer_model = model + rh
         xStokes__ = []
         for aot in aots:
             xlut = []
-            for wl in [ 0.35,0.400, 0.5,0.6, 0.7,0.8, 1, 1.6, 2.2,2.5]:#]:#,
-                file = 'osoaa_atmo_aot' + aot + '_aer{:s}_HR8.0_HA2.0_ws2_wl{:0.3f}.nc'.format(aer_model, wl)
-                #print(file)
+            for wl_ in wls:
+                file = file_type + '_aot' + aot + '_aer' + aer_model + '_HR8.0_HA2.0_ws' + wind + '_wl{:0.3f}.nc'.format(
+                    wl_)
+                # print(file)
 
                 pfile = opj(idir, file)
                 # if not os.path.exists(pfile):
@@ -65,31 +74,44 @@ for rh in rhs:
 
                 wl = lut.getncattr('OSOAA.Wa')
                 sza = lut.variables['sza'][:]
+                Stokes = []
+
                 aerosol = xr.open_dataset(pfile, group='optical_properties/aerosol/'
-                                          ).set_coords(['wl', 'aot_ref']).expand_dims(['wl', 'aot_ref'])
-                Stokes = xr.open_dataset(pfile, group='stokes/' + direction
-                                         ).isel(z=zidx).expand_dims('aot_ref').assign_coords(
-                    {'sza': sza, 'wl': aerosol.wl.values, 'aot_ref': aerosol.aot_ref.values}
-                    )
+                                          ).set_coords(['wl', 'aot_ref']).expand_dims(['wl', 'aot_ref'])[param_aerosol]
+                for i, direction in enumerate(directions):
+                    Stokes.append(xr.open_dataset(pfile, group='stokes/' + direction
+                                                  ).isel(z=zidx).expand_dims('aot_ref').assign_coords(
+                        {'sza': sza, 'wl': aerosol.wl.values, 'aot_ref': aerosol.aot_ref.values, 'wind': float(wind)}))
+                Stokes = xr.concat(Stokes, dim='vza')
+
+                flux = xr.open_dataset(pfile, group='flux').assign_coords(
+                    {'sza': sza, 'wl': aerosol.wl.values, 'aot_ref': aerosol.aot_ref.values, 'wind': float(wind)}).sel(
+                    z=Stokes.z)
+
                 nan_num = np.isnan(Stokes.I.values).sum()
                 if nan_num > 0:
-                    print(nan_num,file)
-                    #os.remove(pfile)
+                    print(nan_num, file)
+                    # os.remove(pfile)
+                merged = xr.merge([aerosol, flux, Stokes]).assign_coords({'model': aer_model}).squeeze().drop_vars('z')
+                # if merged.z[0]!=0:
+                #     print('zzzzzzzzzz',file)
+                #     merged= merged.assign_coords(z=[0,300000])
+                xlut.append(merged)
 
-                xlut.append(xr.merge([aerosol, Stokes]).assign_coords({'model': aer_model}))
             xStokes__.append(xr.concat(xlut, dim='wl'))
         xStokes_.append(xr.concat(xStokes__, dim='aot_ref'))
-xStokes = xr.concat(xStokes_, dim='model')
-xStokes['DoLP'] = (xStokes.Q ** 2 + xStokes.U ** 2) ** 0.5 / xStokes.I
-xStokes['AoLP'] = np.degrees(np.sign(-xStokes.Q) * np.abs(np.arctan(-xStokes.U / xStokes.Q) / 2))
+    xStokes.append(xr.concat(xStokes_, dim='model'))
+xlut = xr.concat(xStokes, dim='wind')
 
 # ----------------------------------------
 # uncomment to save your LUT into netcdf
 # ----------------------------------------
-#xStokes.to_netcdf('study_cases/aerosol/lut/opac_osoaa_lut_v2.nc')
-xStokes.to_netcdf('/DATA/git/satellite_app/hgrs/data/lut/opac_osoaa_lut_v2.nc')
+# xStokes.to_netcdf('case_study/aerosol/lut/opac_osoaa_lut_v2.nc')
+xlut.to_netcdf('/data/vrtc/xlut/boa_lut_opac_wind_updown_v2.nc')
 # ----------------------------------------
 
+xStokes['DoLP'] = (xStokes.Q ** 2 + xStokes.U ** 2) ** 0.5 / xStokes.I
+xStokes['AoLP'] = np.degrees(np.sign(-xStokes.Q) * np.abs(np.arctan(-xStokes.U / xStokes.Q) / 2))
 # ------------------------
 # Plot LUT
 # ------------------------
@@ -199,24 +221,24 @@ norm = mpl.colors.Normalize(vmin=0.01, vmax=1)
 sm = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
 sm.set_array([])
 
-ivza=3
-sza=30
-azi=90
+ivza = 3
+sza = 30
+azi = 90
 xStokes_ = xStokes.isel(z=-1, model=2)
 model = str(xStokes_.model.values)
 
 # models_ = ['COAV','DESE','MACL','MAPO','COPO','URBA','ARCT','ANTA']
 
 models_ = ['COAV', 'DESE', 'MACL', 'URBA', 'ARCT', 'ANTA']
-rh = '_rh99'
-param='I'
-for sza in [10,30,60]:#,60
-#     for ivza in [3]:  # ,20,34
-    for azi in [0,90,180 ]:  # 45,90,135,180
-        for rh in ['_rh0','_rh99']:
+rh = '_rh70'
+param = 'I'
+for sza in [10, 30, 60]:  # ,60
+    #     for ivza in [3]:  # ,20,34
+    for azi in [0, 90, 180]:  # 45,90,135,180
+        for rh in ['_rh70']:  # '_rh0','_rh99']:
             xStokes_ = xStokes.isel(vza=ivza).sel(azi=azi, sza=sza).squeeze()
             vza = '{:.1f}'.format(xStokes_.vza.values)
-            fig, axs_ = plt.subplots(nrows=2, ncols=3, figsize=(20, 10),sharex=True,sharey=True)
+            fig, axs_ = plt.subplots(nrows=2, ncols=3, figsize=(20, 10), sharex=True, sharey=True)
             fig.subplots_adjust(bottom=0.1, top=0.98, left=0.075, right=0.98,
                                 hspace=0.05, wspace=0.05)
             axs = axs_.ravel()
@@ -224,25 +246,24 @@ for sza in [10,30,60]:#,60
                 model = model_ + rh
                 lut_ = xStokes_.sel(model=model)
 
-
                 for aot, lut__ in lut_.groupby('aot_ref'):
-                    axs[imodel].plot(lut__.wl,lut__[param]/np.cos(np.radians(sza)), linestyle='--', marker='o',  color=cmap(norm(aot)))
+                    axs[imodel].plot(lut__.wl, lut__[param] / np.cos(np.radians(sza)), linestyle='--', marker='o',
+                                     color=cmap(norm(aot)))
                 axs[imodel].set_title(model, y=1.0, pad=-18)
             for i in range(6):
                 axs[i].minorticks_on()
             for i in range(3):
-                axs_[1,i].set_xlabel('$Wavelength\ (\mu m)$')
+                axs_[1, i].set_xlabel('$Wavelength\ (\mu m)$')
             for i in range(2):
-                axs_[i,0].set_ylabel('$L^{TOA}_n\ (sr^{-1})$')
+                axs_[i, 0].set_ylabel('$L^{TOA}_n\ (sr^{-1})$')
             cb = fig.colorbar(sm, ax=axs, shrink=0.6, aspect=30, pad=0.04, location='top')
             cb.ax.tick_params(labelsize=22)
-            cb.set_label(' $aot(550nm)\ for\ $'+ rh, fontsize=22)
-            #plt.show()
+            cb.set_label(' $aot(550nm)\ for\ $' + rh, fontsize=22)
+            plt.show()
 
             figfile = 'Stokes_opac_radiance_sza' + str(sza) + '_vza' + vza + '_azi' + str(azi) + rh
 
-
-            plt.savefig(opj(odir,'spectra', figfile + '.png'), dpi=300)
+            plt.savefig(opj(odir, 'spectra', figfile + '.png'), dpi=300)
             plt.close()
 
 # --------------------------
@@ -259,14 +280,15 @@ if nadir:
     vzamax = 16
     suff = '_nadir'
 szaidx = 3
+szas = xStokes.sza.values
 wls_ = [0.4, 0.6, 0.8, 1.6]
 Nrow = 4  # len(directions)
 aot = '0.2'
 aot_num = float(aot)
 for model in xStokes.model.values:
     print(model)
-    xStokes_ = xStokes.sel(model=model).sel(aot_ref=aot_num, method='nearest')
-    figfile = os.path.join(odir, model + '_aot550_' + aot + '_SZA' + str(sza[szaidx]))
+    xStokes_ = xStokes.sel(model=model).sel(aot_ref=aot_num, method='nearest').isel(z=-1)
+    figfile = os.path.join(odir, model + '_aot550_' + aot + '_SZA' + str(szas[szaidx]))
     fig, axs = plt.subplots(Nrow, 4, figsize=(20, 4 + Nrow * 4), subplot_kw=dict(projection='polar'))
     fig.subplots_adjust(top=0.9)
     if Nrow == 1:
@@ -312,7 +334,7 @@ for model in xStokes.model.values:
         lp.add_polplot(axs[3, iwl], r, theta, DOP, title='DOP(' + direction + ')', cmap=cmap, colfmt='%0.2f',
                        minmax=minmaxDOP)
 
-    plt.suptitle(model + ' aot550=' + aot + ' at SZA = ' + str(sza[szaidx]) + ' deg', fontdict=lp.font)
+    plt.suptitle(model + ' aot550=' + aot + ' at SZA = ' + str(szas[szaidx]) + ' deg', fontdict=lp.font)
     plt.tight_layout()
     plt.savefig(figfile + '_sza' + str(sza[szaidx]) + suff + '.png', dpi=300, bbox_inches='tight')
     plt.close()
